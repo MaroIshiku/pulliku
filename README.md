@@ -2,6 +2,10 @@
 
 Self-hosted WebUI fuer `yt-dlp`, gebaut fuer Docker und ZimaOS.
 
+## Hinweis
+
+Diese App wurde von KI erstellt. Feature-Requests werden mit hoher Wahrscheinlichkeit nicht bearbeitet. Bugfixes, Wartung und andere Aenderungen erfolgen unregelmaessig oder moeglicherweise gar nicht.
+
 ## Funktionen
 
 - Login-Seite mit Session-Cookie
