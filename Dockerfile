@@ -1,18 +1,25 @@
+FROM denoland/deno:bin-2.8.3 AS deno
+
 FROM python:3.12-slim
 
 ARG APP_VERSION=0.1.0
 ARG APP_BUILD_SHA=dev
+ARG APP_BUILD_DATE=unknown
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     APP_DATA_DIR=/data \
     DOWNLOAD_DIR=/downloads \
     APP_VERSION=${APP_VERSION} \
-    APP_BUILD_SHA=${APP_BUILD_SHA}
+    APP_BUILD_SHA=${APP_BUILD_SHA} \
+    APP_BUILD_DATE=${APP_BUILD_DATE} \
+    DENO_DIR=/tmp/deno
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends ffmpeg ca-certificates curl \
+    && apt-get install -y --no-install-recommends ffmpeg ca-certificates curl atomicparsley rtmpdump \
     && rm -rf /var/lib/apt/lists/*
+
+COPY --from=deno /deno /usr/local/bin/deno
 
 WORKDIR /app
 

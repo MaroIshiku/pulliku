@@ -15,6 +15,7 @@ Diese App wurde von KI erstellt. Feature-Requests werden mit hoher Wahrscheinlic
 - optionaler Playlist-Download
 - Live-Status mit Fortschritt, Geschwindigkeit und ETA
 - geschuetzte Dateiliste mit Download-Links
+- System-Footer mit App-Version, Build-Commit, Build-Datum und yt-dlp-Version
 - persistente SQLite-Datenbank in `data/` innerhalb von `/media/ZimaOS-HD/AppData/ish_ytdlp`
 - Downloads in `downloads/` innerhalb von `/media/ZimaOS-HD/AppData/ish_ytdlp`
 
@@ -130,6 +131,20 @@ image: ghcr.io/maroishiku/ish-ytdlp:latest
 ```
 
 Falls das GHCR-Package privat ist, kann ZimaOS es nicht ohne Registry-Login ziehen. Am einfachsten stellst du das Package in GitHub auf public oder meldest Docker auf ZimaOS bei `ghcr.io` an.
+
+## yt-dlp Abhaengigkeiten
+
+Das Docker-Image installiert `yt-dlp[default,curl-cffi]`. Dadurch sind die von yt-dlp empfohlenen Standard-Abhaengigkeiten sowie `curl_cffi` fuer Browser-Impersonation enthalten. Das hilft bei Seiten, die TLS-Fingerprinting einsetzen und sonst Meldungen wie `The extractor is attempting impersonation, but no impersonate target is available` ausgeben.
+
+Zusätzlich enthaelt das Image:
+
+- `ffmpeg` und `ffprobe` fuer Merging und Post-Processing
+- `yt-dlp-ejs` ueber die `default`-Dependency-Gruppe
+- `deno` als JavaScript-Runtime fuer yt-dlp-ejs
+- `AtomicParsley` fuer bestimmte Thumbnail-/Metadata-Faelle
+- `rtmpdump` fuer aeltere RTMP-Sonderfaelle
+
+Das verbessert die Kompatibilitaet deutlich, garantiert aber nicht, dass jede Website jederzeit funktioniert. Manche Seiten erfordern Cookies, Login, PO-Token, regionale IPs oder kurzfristige yt-dlp-Fixes.
 
 ### Manuell auf einem Rechner mit Docker
 

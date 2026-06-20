@@ -10,6 +10,8 @@ import sqlite3
 import subprocess
 import threading
 import time
+import importlib.metadata
+import importlib.util
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
@@ -30,6 +32,7 @@ SESSION_DAYS = int(os.getenv("SESSION_DAYS", "14"))
 COOKIE_SECURE = os.getenv("APP_COOKIE_SECURE", "false").lower() == "true"
 APP_VERSION = os.getenv("APP_VERSION", "0.1.0")
 APP_BUILD_SHA = os.getenv("APP_BUILD_SHA", "dev")
+APP_BUILD_DATE = os.getenv("APP_BUILD_DATE", "unknown")
 
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 DOWNLOAD_DIR.mkdir(parents=True, exist_ok=True)
@@ -402,6 +405,39 @@ def newest_download_file() -> Path | None:
     return max(files, key=lambda path: path.stat().st_mtime)
 
 
+def package_version(name: str) -> str | None:
+    try:
+        return importlib.metadata.version(name)
+    except importlib.metadata.PackageNotFoundError:
+        return None
+
+
+def command_version(command: list[str]) -> str | None:
+    try:
+        result = subprocess.run(command, capture_output=True, text=True, timeout=5)
+        if result.returncode == 0:
+            return result.stdout.strip().splitlines()[0]
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return None
+
+
+def system_info() -> dict[str, Any]:
+    return {
+        "status": "ok",
+        "version": APP_VERSION,
+        "build_sha": APP_BUILD_SHA,
+        "build_date": APP_BUILD_DATE,
+        "yt_dlp_version": command_version(["yt-dlp", "--version"])
+        or package_version("yt-dlp")
+        or "unknown",
+        "curl_cffi_available": importlib.util.find_spec("curl_cffi") is not None,
+        "yt_dlp_ejs_version": package_version("yt-dlp-ejs") or "unavailable",
+        "deno_version": command_version(["deno", "--version"]) or "unavailable",
+        "ffmpeg_version": command_version(["ffmpeg", "-version"]) or "unavailable",
+    }
+
+
 def worker_loop() -> None:
     while not stop_worker.is_set():
         row = claim_next_download()
@@ -432,12 +468,8 @@ def index() -> FileResponse:
 
 
 @app.get("/api/health")
-def health() -> dict[str, str]:
-    return {
-        "status": "ok",
-        "version": APP_VERSION,
-        "build_sha": APP_BUILD_SHA,
-    }
+def health() -> dict[str, Any]:
+    return system_info()
 
 
 @app.post("/api/login")

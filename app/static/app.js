@@ -14,8 +14,14 @@ async function loadVersion() {
   try {
     const payload = await api("/api/health");
     const shortSha = payload.build_sha ? payload.build_sha.slice(0, 7) : "dev";
+    const buildDate = payload.build_date && payload.build_date !== "unknown"
+      ? payload.build_date.slice(0, 10)
+      : "unknown";
+    const impersonation = payload.curl_cffi_available ? "impersonation ok" : "impersonation missing";
+    const deno = payload.deno_version && payload.deno_version !== "unavailable" ? "deno ok" : "deno missing";
+    const label = `yt-dlp ${payload.yt_dlp_version || "unknown"} | YTDLP Client ${payload.version || "0.1.0"} ${shortSha} | updated ${buildDate} | ${impersonation} | ${deno}`;
     targets.forEach((target) => {
-      target.textContent = `v${payload.version || "0.1.0"} · ${shortSha}`;
+      target.textContent = label;
     });
   } catch {
     targets.forEach((target) => {
