@@ -209,12 +209,12 @@ function settingsLabel(settings = {}) {
 }
 
 function retentionLabel(item) {
-  if (item.is_permanent) return "Does not expire";
+  if (item.is_permanent) return "No expiration";
   if (item.status === "completed") {
     const expiresAt = formatExpiryDate(item.retention_expires_at);
     if (expiresAt) return `Expires: ${expiresAt}`;
     const days = Number(item.retention_days || 7);
-    return days > 0 ? `Expires in ${days} days` : "Expiration disabled";
+    return days > 0 ? `Expires in ${days} days` : "No expiration";
   }
   return null;
 }
@@ -421,9 +421,10 @@ function renderDownloads() {
       const canDelete = item.status !== "running";
       const canTogglePermanent = item.status === "completed";
       const retentionText = retentionLabel(item);
+      const hasNoExpiration = canTogglePermanent && retentionText === "No expiration";
       const progress = Math.max(0, Math.min(100, item.progress || 0));
       const size = formatBytes(item.file_size);
-      const detail = [settingsLabel(item.settings), size, retentionText, item.speed, item.eta ? `ETA ${item.eta}` : null, formatDate(item.created_at)]
+      const detail = [settingsLabel(item.settings), size, item.speed, item.eta ? `ETA ${item.eta}` : null, formatDate(item.created_at)]
         .filter(Boolean)
         .join(" - ");
       return `
@@ -435,33 +436,60 @@ function renderDownloads() {
             </div>
             <div class="download-badges">
               <span class="status-chip ${escapeHtml(item.status)}">${escapeHtml(item.status)}</span>
-              ${canTogglePermanent ? `<span class="retention-chip ${item.is_permanent ? "permanent" : ""}">${escapeHtml(retentionText)}</span>` : ""}
             </div>
           </div>
           <div class="progress-track"><progress class="progress-bar" value="${progress}" max="100" aria-label="Download progress"></progress></div>
           ${item.error ? `<div class="meta">${escapeHtml(item.error)}</div>` : ""}
           <div class="card-actions">
-            ${
-              item.file_url
-                ? `<a class="icon-button" href="${escapeHtml(item.file_url)}" title="Download file" aria-label="Download file">
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                      <path d="M12 3v11"></path>
-                      <path d="m7 9 5 5 5-5"></path>
-                      <path d="M5 20h14"></path>
-                    </svg>
-                  </a>`
-                : ""
-            }
-            ${canCancel ? `<button class="psu-button psu-button--tonal" type="button" data-action="cancel" data-id="${item.id}">Stop</button>` : ""}
-            ${
-              canTogglePermanent
-                ? `<button class="psu-button retention-toggle ${item.is_permanent ? "is-permanent" : ""}" type="button" data-action="permanent" data-id="${item.id}" data-permanent="${item.is_permanent ? "false" : "true"}" aria-pressed="${item.is_permanent ? "true" : "false"}" title="${item.is_permanent ? "Enable expiration again" : "Keep this file permanently"}">
-                    <span class="retention-toggle-box" aria-hidden="true"></span>
-                    <span>${escapeHtml(retentionText)}</span>
-                  </button>`
-                : ""
-            }
-            ${canDelete ? `<button class="psu-button psu-button--text" type="button" data-action="delete" data-id="${item.id}">Delete file</button>` : ""}
+            <div class="card-actions-left">
+              ${
+                item.file_url
+                  ? `<a class="icon-button" href="${escapeHtml(item.file_url)}" title="Download file" aria-label="Download file">
+                      <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M12 3v11"></path>
+                        <path d="m7 9 5 5 5-5"></path>
+                        <path d="M5 20h14"></path>
+                      </svg>
+                    </a>`
+                  : ""
+              }
+              ${
+                item.open_file_url
+                  ? `<a class="icon-button" href="${escapeHtml(item.open_file_url)}" target="_blank" rel="noopener" title="Open file" aria-label="Open file">
+                      <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M15 3h6v6"></path>
+                        <path d="M10 14 21 3"></path>
+                        <path d="M21 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5"></path>
+                      </svg>
+                    </a>`
+                  : ""
+              }
+              ${canCancel ? `<button class="psu-button psu-button--tonal" type="button" data-action="cancel" data-id="${item.id}">Stop</button>` : ""}
+            </div>
+            <div class="card-actions-right">
+              ${
+                canTogglePermanent
+                  ? `<button class="retention-pill ${item.is_permanent ? "is-permanent" : ""} ${hasNoExpiration ? "has-no-expiration" : ""}" type="button" data-action="permanent" data-id="${item.id}" data-permanent="${item.is_permanent ? "false" : "true"}" aria-pressed="${item.is_permanent ? "true" : "false"}" title="${item.is_permanent ? "Enable expiration again" : "Keep this file permanently"}">
+                      <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M5 22h14"></path>
+                        <path d="M5 2h14"></path>
+                        <path d="M17 22v-4.17a2 2 0 0 0-.59-1.42L12 12l-4.41 4.41A2 2 0 0 0 7 17.83V22"></path>
+                        <path d="M7 2v4.17a2 2 0 0 0 .59 1.42L12 12l4.41-4.41A2 2 0 0 0 17 6.17V2"></path>
+                      </svg>
+                      <span>${escapeHtml(retentionText)}</span>
+                    </button>`
+                  : ""
+              }
+              ${canDelete ? `<button class="icon-button icon-button--danger" type="button" data-action="delete" data-id="${item.id}" title="Delete file" aria-label="Delete file">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M3 6h18"></path>
+                  <path d="M8 6V4h8v2"></path>
+                  <path d="M19 6l-1 14H6L5 6"></path>
+                  <path d="M10 11v5"></path>
+                  <path d="M14 11v5"></path>
+                </svg>
+              </button>` : ""}
+            </div>
           </div>
         </article>
       `;

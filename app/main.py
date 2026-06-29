@@ -770,6 +770,7 @@ def stored_file_size(row: sqlite3.Row) -> int | None:
 
 def row_to_download(row: sqlite3.Row) -> dict[str, Any]:
     file_url = f"/api/downloads/{row['id']}/file" if row["status"] == "completed" and row["filename"] else None
+    open_file_url = f"/api/downloads/{row['id']}/open" if row["status"] == "completed" and row["filename"] else None
     settings = row_settings(row)
     retention_expires_at = None
     if row["status"] == "completed" and not bool(row["is_permanent"]) and FILE_RETENTION_DAYS > 0:
@@ -793,6 +794,7 @@ def row_to_download(row: sqlite3.Row) -> dict[str, Any]:
         "filename": row["filename"],
         "file_size": stored_file_size(row),
         "file_url": file_url,
+        "open_file_url": open_file_url,
         "is_permanent": bool(row["is_permanent"]),
         "retention_days": FILE_RETENTION_DAYS,
         "retention_expires_at": retention_expires_at,
@@ -1524,8 +1526,7 @@ def files(user: dict[str, Any] = Depends(get_current_user)) -> dict[str, Any]:
     return {"files": items[:200]}
 
 
-@app.get("/api/downloads/{download_id}/file")
-def download_file(download_id: int, user: dict[str, Any] = Depends(get_current_user)) -> FileResponse:
+def completed_download_target(download_id: int, user_id: int) -> Path:
     download_root = DOWNLOAD_DIR.resolve()
     with connect() as conn:
         row = conn.execute(
@@ -1546,7 +1547,19 @@ def download_file(download_id: int, user: dict[str, Any] = Depends(get_current_u
         raise HTTPException(status_code=404, detail="File not found") from None
     if not target.is_file():
         raise HTTPException(status_code=404, detail="File not found")
+    return target
+
+
+@app.get("/api/downloads/{download_id}/file")
+def download_file(download_id: int, user: dict[str, Any] = Depends(get_current_user)) -> FileResponse:
+    target = completed_download_target(download_id, user["id"])
     return FileResponse(target, filename=target.name)
+
+
+@app.get("/api/downloads/{download_id}/open")
+def open_download_file(download_id: int, user: dict[str, Any] = Depends(get_current_user)) -> FileResponse:
+    target = completed_download_target(download_id, user["id"])
+    return FileResponse(target, filename=target.name, content_disposition_type="inline")
 
 
 @app.get("/api/admin/users")
