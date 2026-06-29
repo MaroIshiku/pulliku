@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="de" data-theme="lavender" data-mode="system" data-resolved-mode="light">
+<html lang="en" data-theme="lavender" data-mode="system" data-resolved-mode="light">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
@@ -21,8 +21,8 @@
           </span>
           <div>
             <p class="eyebrow">First-Run Setup</p>
-            <h1 class="psu-setup-title">Admin einrichten</h1>
-            <p class="psu-setup-subtitle">Erstelle den ersten Adminaccount fuer Pulliku.</p>
+            <h1 class="psu-setup-title">Set up admin</h1>
+            <p class="psu-setup-subtitle">Create the first admin account for Pulliku.</p>
           </div>
         </div>
         <form id="setupForm" class="psu-form-stack">
@@ -31,34 +31,34 @@
             <input id="setupSecret" class="psu-input" name="setup_secret" type="password" autocomplete="one-time-code" required />
           </label>
           <label class="psu-field">
-            <span class="psu-label">Anzeigename</span>
+            <span class="psu-label">Display name</span>
             <input class="psu-input" name="display_name" autocomplete="name" required />
           </label>
           <label class="psu-field">
-            <span class="psu-label">Admin-Benutzername</span>
+            <span class="psu-label">Admin username</span>
             <input class="psu-input" name="username" autocomplete="username" required minlength="3" />
           </label>
           <label class="psu-field">
-            <span class="psu-label">E-Mail optional</span>
+            <span class="psu-label">Email optional</span>
             <input class="psu-input" name="email" type="email" autocomplete="email" />
           </label>
           <label class="psu-field">
-            <span class="psu-label">Admin-Passwort</span>
+            <span class="psu-label">Admin password</span>
             <input class="psu-input" name="password" type="password" autocomplete="new-password" required minlength="12" />
           </label>
           <label class="psu-field">
-            <span class="psu-label">Passwort wiederholen</span>
+            <span class="psu-label">Repeat password</span>
             <input class="psu-input" name="password_confirm" type="password" autocomplete="new-password" required minlength="12" />
           </label>
           <div class="psu-password-requirements">
-            Passwoerter brauchen mindestens 12 Zeichen, drei Zeichenklassen und muessen sich vom Setup-Secret, Benutzernamen und App-Namen unterscheiden.
+            Passwords need at least 12 characters, three character classes, and must differ from the setup secret, username, and app name.
           </div>
           <div class="psu-setup-actions">
-            <button class="psu-button psu-button--tonal" type="button" id="setupHelpButton">Setup-Hilfe</button>
-            <button class="psu-button psu-button--filled" type="submit">Adminaccount erstellen</button>
+            <button class="psu-button psu-button--tonal" type="button" id="setupHelpButton">Setup help</button>
+            <button class="psu-button psu-button--filled" type="submit">Create admin account</button>
           </div>
           <p id="setupError" class="psu-field-error" role="alert"></p>
-          <p id="setupHelp" class="psu-setup-footnote" hidden>Das Setup-Secret steht in deiner Docker-Secret-Datei oder in der Umgebungsvariable ISHIKU_SETUP_SECRET.</p>
+          <p id="setupHelp" class="psu-setup-footnote" hidden>The setup secret is stored in your Docker secret file or in the ISHIKU_SETUP_SECRET environment variable.</p>
         </form>
       </section>
 
@@ -68,13 +68,13 @@
             <img src="/static/pulliku-logo.png" alt="" />
           </span>
           <div>
-            <p class="eyebrow">Setup blockiert</p>
-            <h1 class="psu-setup-title">Setup-Secret fehlt</h1>
-            <p class="psu-setup-subtitle">Pulliku braucht ein Setup-Secret, bevor der erste Admin erstellt werden kann.</p>
+            <p class="eyebrow">Setup blocked</p>
+            <h1 class="psu-setup-title">Setup secret missing</h1>
+            <p class="psu-setup-subtitle">Pulliku needs a setup secret before the first admin can be created.</p>
           </div>
         </div>
         <div class="psu-technical-card">
-          Fehlende Konfiguration: <span id="setupMissingConfig" class="psu-technical-value">ISHIKU_SETUP_SECRET_FILE</span>
+          Missing configuration: <span id="setupMissingConfig" class="psu-technical-value">ISHIKU_SETUP_SECRET_FILE</span>
         </div>
       </section>
     </main>

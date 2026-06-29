@@ -14,7 +14,7 @@
     "use_as_profile_sheet_symbol": true,
     "use_as_empty_state_symbol": true
   },
-  "primary_purpose": "Self-hosted Webinterface fuer Medien-Downloads mit yt-dlp.",
+  "primary_purpose": "Self-hosted web interface for media downloads with yt-dlp.",
   "main_sections": ["Download", "Queue"],
   "navigation_complexity": "single_view",
   "default_theme": "lavender",
@@ -35,7 +35,7 @@
     "repository_name": "pulliku",
     "github_owner": "MaroIshiku",
     "public_repository": true,
-    "short_description": "Pulliku ist ein ruhiges, self-hosted Webinterface fuer Medien-Downloads.",
+    "short_description": "Pulliku is a calm, self-hosted web interface for media downloads.",
     "docker_image": "ghcr.io/maroishiku/pulliku:latest",
     "codex_notice_enabled": true
   }

@@ -145,7 +145,7 @@ function formatExpiryDate(value) {
   if (!value) return "";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "";
-  return new Intl.DateTimeFormat("de-DE", {
+  return new Intl.DateTimeFormat("en-US", {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
@@ -209,12 +209,12 @@ function settingsLabel(settings = {}) {
 }
 
 function retentionLabel(item) {
-  if (item.is_permanent) return "Läuft nicht ab";
+  if (item.is_permanent) return "Does not expire";
   if (item.status === "completed") {
     const expiresAt = formatExpiryDate(item.retention_expires_at);
-    if (expiresAt) return `Ablauffrist: ${expiresAt}`;
+    if (expiresAt) return `Expires: ${expiresAt}`;
     const days = Number(item.retention_days || 7);
-    return days > 0 ? `Ablauffrist: in ${days} Tagen` : "Ablauffrist aus";
+    return days > 0 ? `Expires in ${days} days` : "Expiration disabled";
   }
   return null;
 }
@@ -455,7 +455,7 @@ function renderDownloads() {
             ${canCancel ? `<button class="psu-button psu-button--tonal" type="button" data-action="cancel" data-id="${item.id}">Stop</button>` : ""}
             ${
               canTogglePermanent
-                ? `<button class="psu-button retention-toggle ${item.is_permanent ? "is-permanent" : ""}" type="button" data-action="permanent" data-id="${item.id}" data-permanent="${item.is_permanent ? "false" : "true"}" aria-pressed="${item.is_permanent ? "true" : "false"}" title="${item.is_permanent ? "Ablauffrist wieder aktivieren" : "Datei dauerhaft behalten"}">
+                ? `<button class="psu-button retention-toggle ${item.is_permanent ? "is-permanent" : ""}" type="button" data-action="permanent" data-id="${item.id}" data-permanent="${item.is_permanent ? "false" : "true"}" aria-pressed="${item.is_permanent ? "true" : "false"}" title="${item.is_permanent ? "Enable expiration again" : "Keep this file permanently"}">
                     <span class="retention-toggle-box" aria-hidden="true"></span>
                     <span>${escapeHtml(retentionText)}</span>
                   </button>`
