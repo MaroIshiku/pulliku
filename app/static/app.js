@@ -141,6 +141,17 @@ function formatDate(value) {
   }).format(new Date(value));
 }
 
+function formatExpiryDate(value) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return new Intl.DateTimeFormat("de-DE", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).format(date);
+}
+
 async function api(path, options = {}) {
   const method = String(options.method || "GET").toUpperCase();
   const headers = {
@@ -198,10 +209,12 @@ function settingsLabel(settings = {}) {
 }
 
 function retentionLabel(item) {
-  if (item.is_permanent) return "Permanent";
+  if (item.is_permanent) return "Läuft nicht ab";
   if (item.status === "completed") {
+    const expiresAt = formatExpiryDate(item.retention_expires_at);
+    if (expiresAt) return `Ablauffrist: ${expiresAt}`;
     const days = Number(item.retention_days || 7);
-    return days > 0 ? `Auto-delete in ${days} days` : "Auto-delete off";
+    return days > 0 ? `Ablauffrist: in ${days} Tagen` : "Ablauffrist aus";
   }
   return null;
 }
@@ -407,9 +420,10 @@ function renderDownloads() {
       const canCancel = ["queued", "running"].includes(item.status);
       const canDelete = item.status !== "running";
       const canTogglePermanent = item.status === "completed";
+      const retentionText = retentionLabel(item);
       const progress = Math.max(0, Math.min(100, item.progress || 0));
       const size = formatBytes(item.file_size);
-      const detail = [settingsLabel(item.settings), size, retentionLabel(item), item.speed, item.eta ? `ETA ${item.eta}` : null, formatDate(item.created_at)]
+      const detail = [settingsLabel(item.settings), size, retentionText, item.speed, item.eta ? `ETA ${item.eta}` : null, formatDate(item.created_at)]
         .filter(Boolean)
         .join(" - ");
       return `
@@ -421,7 +435,7 @@ function renderDownloads() {
             </div>
             <div class="download-badges">
               <span class="status-chip ${escapeHtml(item.status)}">${escapeHtml(item.status)}</span>
-              ${canTogglePermanent ? `<span class="retention-chip ${item.is_permanent ? "permanent" : ""}">${item.is_permanent ? "Favorite" : "7-day cleanup"}</span>` : ""}
+              ${canTogglePermanent ? `<span class="retention-chip ${item.is_permanent ? "permanent" : ""}">${escapeHtml(retentionText)}</span>` : ""}
             </div>
           </div>
           <div class="progress-track"><progress class="progress-bar" value="${progress}" max="100" aria-label="Download progress"></progress></div>
@@ -441,9 +455,9 @@ function renderDownloads() {
             ${canCancel ? `<button class="psu-button psu-button--tonal" type="button" data-action="cancel" data-id="${item.id}">Stop</button>` : ""}
             ${
               canTogglePermanent
-                ? `<button class="psu-button retention-toggle ${item.is_permanent ? "is-permanent" : ""}" type="button" data-action="permanent" data-id="${item.id}" data-permanent="${item.is_permanent ? "false" : "true"}" aria-pressed="${item.is_permanent ? "true" : "false"}" title="${item.is_permanent ? "Use 7-day cleanup again" : "Keep this file permanently"}">
-                    <span aria-hidden="true">${item.is_permanent ? "★" : "☆"}</span>
-                    <span>${item.is_permanent ? "Permanent" : "Favorite"}</span>
+                ? `<button class="psu-button retention-toggle ${item.is_permanent ? "is-permanent" : ""}" type="button" data-action="permanent" data-id="${item.id}" data-permanent="${item.is_permanent ? "false" : "true"}" aria-pressed="${item.is_permanent ? "true" : "false"}" title="${item.is_permanent ? "Ablauffrist wieder aktivieren" : "Datei dauerhaft behalten"}">
+                    <span class="retention-toggle-box" aria-hidden="true"></span>
+                    <span>${escapeHtml(retentionText)}</span>
                   </button>`
                 : ""
             }

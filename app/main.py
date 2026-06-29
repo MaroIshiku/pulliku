@@ -771,6 +771,14 @@ def stored_file_size(row: sqlite3.Row) -> int | None:
 def row_to_download(row: sqlite3.Row) -> dict[str, Any]:
     file_url = f"/api/downloads/{row['id']}/file" if row["status"] == "completed" and row["filename"] else None
     settings = row_settings(row)
+    retention_expires_at = None
+    if row["status"] == "completed" and not bool(row["is_permanent"]) and FILE_RETENTION_DAYS > 0:
+        try:
+            retention_expires_at = (
+                datetime.fromisoformat(row["updated_at"]) + timedelta(days=FILE_RETENTION_DAYS)
+            ).isoformat()
+        except (TypeError, ValueError):
+            retention_expires_at = None
     return {
         "id": row["id"],
         "url": row["url"],
@@ -787,6 +795,7 @@ def row_to_download(row: sqlite3.Row) -> dict[str, Any]:
         "file_url": file_url,
         "is_permanent": bool(row["is_permanent"]),
         "retention_days": FILE_RETENTION_DAYS,
+        "retention_expires_at": retention_expires_at,
         "error": row["error"],
         "created_by": row["created_by"],
         "created_at": row["created_at"],
