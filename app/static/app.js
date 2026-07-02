@@ -319,7 +319,6 @@ function showApp() {
   $("#appView").hidden = false;
   const name = state.user?.display_name || state.user?.username || APP_NAME;
   const avatar = initials(name);
-  $("#currentUser").textContent = name;
   $("#avatarInitials").textContent = avatar;
   $("#accountAvatar").textContent = avatar;
   $("#accountName").textContent = name;
