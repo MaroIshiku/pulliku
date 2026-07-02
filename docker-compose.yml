@@ -23,10 +23,10 @@ services:
       SESSION_DAYS: 14
     volumes:
       - type: bind
-        source: /media/ZimaOS-HD/AppData/pulliku/data
+        source: /DATA/AppData/pulliku/data
         target: /data
       - type: bind
-        source: /media/ZimaOS-HD/AppData/pulliku/downloads
+        source: /DATA/AppData/pulliku/downloads
         target: /downloads
     network_mode: bridge
     privileged: false

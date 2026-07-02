@@ -5,7 +5,9 @@ services:
     container_name: pulliku
     restart: unless-stopped
     ports:
-      - "8180:8080"
+      - target: 8080
+        published: "8180"
+        protocol: tcp
     environment:
       TZ: Europe/Berlin
       ISHIKU_APP_URL: http://localhost:8180
@@ -20,8 +22,12 @@ services:
       PULLIKU_CLEANUP_INTERVAL_SECONDS: 3600
       SESSION_DAYS: 14
     volumes:
-      - ./data:/data
-      - ./downloads:/downloads
+      - type: bind
+        source: /DATA/AppData/pulliku/data
+        target: /data
+      - type: bind
+        source: /DATA/AppData/pulliku/downloads
+        target: /downloads
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8080/healthz"]
       interval: 30s

@@ -23,13 +23,13 @@ services:
       SESSION_DAYS: 14
     volumes:
       - type: bind
-        source: /media/ZimaOS-HD/AppData/pulliku/data
+        source: /DATA/AppData/pulliku/data
         target: /data
       - type: bind
-        source: /media/ZimaOS-HD/AppData/pulliku/downloads
+        source: /DATA/AppData/pulliku/downloads
         target: /downloads
       - type: bind
-        source: /media/ZimaOS-HD/AppData/pulliku/secrets/setup_secret.txt
+        source: /DATA/AppData/pulliku/secrets/setup_secret.txt
         target: /run/secrets/ishiku_setup_secret
         read_only: true
     network_mode: bridge

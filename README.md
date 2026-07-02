@@ -53,8 +53,8 @@ The app is intentionally meant to feel like part of a shared suite, not like a s
 Create the app data folders on ZimaOS or your Docker host:
 
 ```bash
-mkdir -p /media/ZimaOS-HD/AppData/pulliku/data
-mkdir -p /media/ZimaOS-HD/AppData/pulliku/downloads
+mkdir -p /DATA/AppData/pulliku/data
+mkdir -p /DATA/AppData/pulliku/downloads
 ```
 
 Set a long setup secret in `docker-compose.yml`:
@@ -66,7 +66,6 @@ ISHIKU_SETUP_SECRET: "replace-this-with-a-long-random-secret"
 Start Pulliku:
 
 ```bash
-cd /media/ZimaOS-HD/AppData/pulliku
 docker compose up -d
 ```
 
@@ -125,13 +124,13 @@ For ZimaOS/CasaOS, `docker-compose.zimaos-ui.yml` is also available and bind-mou
 Persistent data is stored by default in:
 
 ```text
-/media/ZimaOS-HD/AppData/pulliku/data
+/DATA/AppData/pulliku/data
 ```
 
 Downloads are stored by default in:
 
 ```text
-/media/ZimaOS-HD/AppData/pulliku/downloads
+/DATA/AppData/pulliku/downloads
 ```
 
 Back up both folders regularly when Pulliku is used in production.
