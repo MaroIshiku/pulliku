@@ -1,4 +1,4 @@
-FROM denoland/deno:bin-2.8.3 AS deno
+FROM denoland/deno:bin-2.9.1 AS deno
 
 FROM python:3.12-slim
 
