@@ -518,6 +518,10 @@ svg {
   gap: var(--space-3);
 }
 
+.profile-menu-list {
+  margin-block-start: var(--space-2);
+}
+
 .app-identity-card {
   grid-template-columns: 72px 1fr;
   align-items: center;

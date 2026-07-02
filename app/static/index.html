@@ -276,17 +276,6 @@
           </div>
         </div>
 
-        <section class="sheet-section app-identity-card">
-          <span class="psu-logo-frame" aria-hidden="true">
-            <img data-psu-app-logo src="/static/pulliku-logo.png" alt="" />
-            <svg data-psu-fallback-symbol><use href="#psu-icon-download"></use></svg>
-          </span>
-          <div>
-            <h3 class="psu-card-title">Pulliku</h3>
-            <p class="psu-card-text">Media Download Interface</p>
-          </div>
-        </section>
-
         <div class="sheet-section">
           <h3>Appearance</h3>
           <div id="themeChoices" class="theme-grid" role="group" aria-label="Theme">
@@ -326,10 +315,16 @@
           <div id="userList" class="user-list"></div>
         </div>
 
-        <button id="logoutButton" class="psu-button psu-button--danger psu-button--full" type="button">Sign out</button>
+        <div class="psu-list profile-menu-list">
+          <button id="logoutButton" class="psu-list-row" type="button">
+            <svg class="psu-list-row__icon"><use href="#psu-icon-logout"></use></svg>
+            <span class="psu-list-row__label">Sign out</span>
+            <span></span>
+          </button>
+        </div>
       </section>
     </aside>
 
-    <script src="/static/app.js?v=20260702a"></script>
+    <script src="/static/app.js?v=20260702b"></script>
   </body>
 </html>
