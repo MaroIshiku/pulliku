@@ -597,6 +597,7 @@ $("#loginForm").addEventListener("submit", async (event) => {
   event.preventDefault();
   const loginForm = event.currentTarget;
   $("#loginError").textContent = "";
+  $("#loginError").hidden = true;
   const form = new FormData(loginForm);
   try {
     const payload = await api("/api/login", {
@@ -613,6 +614,7 @@ $("#loginForm").addEventListener("submit", async (event) => {
     state.poller = setInterval(refreshAll, 2500);
   } catch (error) {
     $("#loginError").textContent = error.message;
+    $("#loginError").hidden = false;
   }
 });
 
