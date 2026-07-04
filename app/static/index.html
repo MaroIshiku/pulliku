@@ -8,7 +8,7 @@
     <meta name="apple-mobile-web-app-title" content="Pulliku" />
     <title>Pulliku</title>
     <link rel="icon" href="/static/pulliku-logo.png" />
-    <link rel="stylesheet" href="/static/style.css?v=20260702a" />
+    <link rel="stylesheet" href="/static/style.css?v=20260704a" />
   </head>
   <body>
     <div id="iconSprite" hidden aria-hidden="true"></div>
@@ -255,9 +255,8 @@
       </main>
     </div>
 
-    <aside id="userMenu" class="user-sheet" hidden>
-      <div class="sheet-backdrop" data-menu-close></div>
-      <section class="sheet-panel" role="dialog" aria-modal="true" aria-labelledby="userMenuTitle">
+    <aside id="userMenu" class="psu-backdrop" data-menu-close hidden>
+      <section class="psu-sheet pulliku-profile-sheet" role="dialog" aria-modal="true" aria-labelledby="userMenuTitle">
         <div class="sheet-head">
           <button id="userMenuClose" class="psu-icon-button" type="button" aria-label="Close profile and settings">
             <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -269,51 +268,110 @@
           <span></span>
         </div>
 
-        <div class="psu-account-card">
+        <button id="accountPanelButton" class="psu-account-card account-panel-button" type="button" aria-label="Open account settings">
           <div id="accountAvatar" class="psu-account-avatar">PU</div>
           <div>
             <p id="accountName" class="psu-account-name">Pulliku</p>
             <p id="accountRole" class="psu-account-id">Local account</p>
           </div>
-        </div>
+          <svg class="account-panel-chevron" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="m9 18 6-6-6-6"></path>
+          </svg>
+        </button>
 
-        <div class="sheet-section">
-          <h3>Appearance</h3>
-          <div id="themeChoices" class="theme-grid" role="group" aria-label="Theme">
-            <button class="psu-chip" type="button" data-theme-choice="lavender">Lavender</button>
-            <button class="psu-chip" type="button" data-theme-choice="mint">Mint</button>
-            <button class="psu-chip" type="button" data-theme-choice="sky">Sky</button>
-            <button class="psu-chip" type="button" data-theme-choice="amber">Amber</button>
-            <button class="psu-chip" type="button" data-theme-choice="rose">Rose</button>
-            <button class="psu-chip" type="button" data-theme-choice="graphite">Graphite</button>
-          </div>
-          <div class="psu-segmented-control" role="group" aria-label="Mode">
-            <button type="button" data-mode-choice="system">System</button>
-            <button type="button" data-mode-choice="light">Light</button>
-            <button type="button" data-mode-choice="dark">Dark</button>
-          </div>
-        </div>
-
-        <div class="sheet-section">
-          <h3>About</h3>
-          <div id="aboutInfo" class="about-grid"></div>
-          <button id="copyDebugButton" class="psu-button psu-button--tonal" type="button">Copy debug details</button>
-        </div>
-
-        <div id="adminTools" class="sheet-section" hidden>
-          <h3>User Management</h3>
-          <form id="userForm" class="psu-form-stack compact-form">
-            <input class="psu-input" name="username" placeholder="Username" required minlength="3" />
-            <input class="psu-input" name="password" type="password" placeholder="Password" required minlength="12" />
-            <label class="switch-row">
-              <span>Admin</span>
-              <input name="is_admin" type="checkbox" />
-              <span class="switch-track" aria-hidden="true"></span>
+        <section id="accountEditView" class="account-edit-view" hidden>
+          <button id="accountBackButton" class="psu-button psu-button--text account-back-button" type="button">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="m15 18-6-6 6-6"></path>
+            </svg>
+            Account
+          </button>
+          <form id="accountForm" class="psu-form-stack compact-form">
+            <label class="psu-field">
+              <span class="psu-label">Display name</span>
+              <input id="profileDisplayName" class="psu-input" name="display_name" autocomplete="name" required maxlength="120" />
             </label>
-            <button class="psu-button psu-button--tonal" type="submit">Create user</button>
-            <p id="userError" class="psu-field-error" role="alert"></p>
+            <label class="psu-field">
+              <span class="psu-label">Username</span>
+              <input id="profileUsername" class="psu-input" name="username" autocomplete="username" required minlength="3" maxlength="80" />
+            </label>
+            <label class="psu-field">
+              <span class="psu-label">Current password</span>
+              <input class="psu-input" name="current_password" type="password" autocomplete="current-password" />
+            </label>
+            <label class="psu-field">
+              <span class="psu-label">New password</span>
+              <input class="psu-input" name="new_password" type="password" autocomplete="new-password" minlength="12" />
+            </label>
+            <label class="psu-field">
+              <span class="psu-label">Repeat new password</span>
+              <input class="psu-input" name="password_confirm" type="password" autocomplete="new-password" minlength="12" />
+            </label>
+            <p id="accountError" class="psu-field-error" role="alert"></p>
+            <button class="psu-button psu-button--filled psu-button--full" type="submit">Save account</button>
           </form>
-          <div id="userList" class="user-list"></div>
+        </section>
+
+        <div id="menuAccordion" class="menu-accordion">
+          <section class="sheet-section sheet-accordion" data-menu-section="appearance">
+            <button class="sheet-accordion-trigger" type="button" aria-expanded="true" aria-controls="appearancePanel" data-menu-trigger="appearance">
+              <span>Appearance</span>
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="m6 9 6 6 6-6"></path>
+              </svg>
+            </button>
+            <div id="appearancePanel" class="sheet-accordion-panel" data-menu-panel="appearance">
+              <div id="themeChoices" class="theme-grid" data-theme-picker role="group" aria-label="Theme">
+                <button class="psu-chip" type="button" data-theme-choice="lavender">Lavender</button>
+                <button class="psu-chip" type="button" data-theme-choice="mint">Mint</button>
+                <button class="psu-chip" type="button" data-theme-choice="sky">Sky</button>
+                <button class="psu-chip" type="button" data-theme-choice="amber">Amber</button>
+                <button class="psu-chip" type="button" data-theme-choice="rose">Rose</button>
+                <button class="psu-chip" type="button" data-theme-choice="graphite">Graphite</button>
+              </div>
+              <div class="psu-segmented-control" data-mode-picker role="group" aria-label="Mode">
+                <button type="button" data-mode-choice="system">System</button>
+                <button type="button" data-mode-choice="light">Light</button>
+                <button type="button" data-mode-choice="dark">Dark</button>
+              </div>
+            </div>
+          </section>
+
+          <section class="sheet-section sheet-accordion" data-menu-section="about">
+            <button class="sheet-accordion-trigger" type="button" aria-expanded="false" aria-controls="aboutPanel" data-menu-trigger="about">
+              <span>About</span>
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="m6 9 6 6 6-6"></path>
+              </svg>
+            </button>
+            <div id="aboutPanel" class="sheet-accordion-panel" data-menu-panel="about" hidden>
+              <div id="aboutInfo" class="about-grid"></div>
+              <button id="copyDebugButton" class="psu-button psu-button--tonal" type="button">Copy debug details</button>
+            </div>
+          </section>
+
+          <section id="adminTools" class="sheet-section sheet-accordion" data-menu-section="users" hidden>
+            <button class="sheet-accordion-trigger" type="button" aria-expanded="false" aria-controls="usersPanel" data-menu-trigger="users">
+              <span>User Management</span>
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="m6 9 6 6 6-6"></path>
+              </svg>
+            </button>
+            <div id="usersPanel" class="sheet-accordion-panel" data-menu-panel="users" hidden>
+              <form id="userForm" class="psu-form-stack compact-form">
+                <input class="psu-input" name="username" placeholder="Username" required minlength="3" />
+                <input class="psu-input" name="password" type="password" placeholder="Password" required minlength="12" />
+                <label class="switch-row">
+                  <span>Admin</span>
+                  <input name="is_admin" type="checkbox" />
+                  <span class="switch-track" aria-hidden="true"></span>
+                </label>
+                <button class="psu-button psu-button--tonal" type="submit">Create user</button>
+                <p id="userError" class="psu-field-error" role="alert"></p>
+              </form>
+              <div id="userList" class="user-list"></div>
+            </div>
+          </section>
         </div>
 
         <div class="psu-list profile-menu-list">
@@ -326,6 +384,8 @@
       </section>
     </aside>
 
-    <script src="/static/app.js?v=20260702b"></script>
+    <div id="psu-toast-host" class="psu-toast-host" aria-live="polite" aria-atomic="true"></div>
+
+    <script src="/static/app.js?v=20260704a"></script>
   </body>
 </html>

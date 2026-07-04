@@ -325,6 +325,37 @@ function showApp() {
   $("#accountRole").textContent = state.user?.is_admin ? "Administrator" : "Local account";
   $("#userMenuTitle").textContent = APP_NAME;
   $("#adminTools").hidden = !state.user?.is_admin;
+  hydrateAccountForm();
+}
+
+function hydrateAccountForm() {
+  if (!state.user) return;
+  $("#profileDisplayName").value = state.user.display_name || state.user.username || "";
+  $("#profileUsername").value = state.user.username || "";
+}
+
+function setMenuSection(openSection) {
+  $$("[data-menu-section]").forEach((section) => {
+    const key = section.dataset.menuSection;
+    const open = key === openSection;
+    const trigger = section.querySelector("[data-menu-trigger]");
+    const panel = section.querySelector("[data-menu-panel]");
+    if (trigger) trigger.setAttribute("aria-expanded", String(open));
+    if (panel) panel.hidden = !open;
+    section.dataset.open = String(open);
+  });
+}
+
+function showAccountEditor(open) {
+  $("#accountEditView").hidden = !open;
+  $("#menuAccordion").hidden = open;
+  $(".profile-menu-list").hidden = open;
+  $("#accountPanelButton").hidden = open;
+  if (open) {
+    hydrateAccountForm();
+    $("#accountError").textContent = "";
+    requestAnimationFrame(() => $("#profileDisplayName")?.focus());
+  }
 }
 
 async function loadSystemInfo() {
@@ -511,10 +542,10 @@ function renderUsers() {
             </div>
           </div>
           <div class="user-actions">
-            <button class="psu-button psu-button--text" type="button" data-user-action="password" data-id="${user.id}">Password</button>
             ${
               user.id !== state.user.id
-                ? `<button class="psu-button psu-button--text" type="button" data-user-action="delete" data-id="${user.id}">Delete</button>`
+                ? `<button class="psu-button psu-button--text" type="button" data-user-action="password" data-id="${user.id}">Password</button>
+                   <button class="psu-button psu-button--text" type="button" data-user-action="delete" data-id="${user.id}">Delete</button>`
                 : ""
             }
           </div>
@@ -527,12 +558,15 @@ function renderUsers() {
 function openUserMenu() {
   $("#userMenu").hidden = false;
   $("#userMenuButton").setAttribute("aria-expanded", "true");
+  showAccountEditor(false);
+  setMenuSection("appearance");
   loadSystemInfo().catch(() => renderAboutInfo());
 }
 
 function closeUserMenu() {
   $("#userMenu").hidden = true;
   $("#userMenuButton").setAttribute("aria-expanded", "false");
+  showAccountEditor(false);
 }
 
 async function boot() {
@@ -670,7 +704,7 @@ $("#downloadList").addEventListener("click", async (event) => {
     }
     await loadDownloads();
   } catch (error) {
-    alert(error.message);
+    showToast(error.message);
   } finally {
     button.disabled = false;
   }
@@ -691,6 +725,15 @@ $("#refreshButton").addEventListener("click", loadDownloads);
 
 $("#userMenuButton").addEventListener("click", openUserMenu);
 $("#userMenuClose").addEventListener("click", closeUserMenu);
+$("#accountPanelButton").addEventListener("click", () => showAccountEditor(true));
+$("#accountBackButton").addEventListener("click", () => showAccountEditor(false));
+$$("[data-menu-trigger]").forEach((button) => {
+  button.addEventListener("click", () => {
+    const section = button.dataset.menuTrigger;
+    const isOpen = button.getAttribute("aria-expanded") === "true";
+    setMenuSection(isOpen ? "" : section);
+  });
+});
 $("#userMenu").addEventListener("click", (event) => {
   if (event.target.matches("[data-menu-close]")) {
     closeUserMenu();
@@ -725,6 +768,38 @@ window.addEventListener("scroll", () => {
 $("#copyDebugButton").addEventListener("click", async () => {
   const payload = JSON.stringify(state.systemInfo || {}, null, 2);
   await navigator.clipboard.writeText(payload);
+});
+
+$("#accountForm").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const accountForm = event.currentTarget;
+  const submitButton = accountForm.querySelector("button[type='submit']");
+  const form = new FormData(accountForm);
+  $("#accountError").textContent = "";
+  submitButton.disabled = true;
+  try {
+    const payload = await api("/api/me", {
+      method: "PUT",
+      body: JSON.stringify({
+        display_name: form.get("display_name"),
+        username: form.get("username"),
+        current_password: form.get("current_password") || "",
+        new_password: form.get("new_password") || "",
+        password_confirm: form.get("password_confirm") || "",
+      }),
+    });
+    state.user = payload.user;
+    accountForm.querySelector("[name='current_password']").value = "";
+    accountForm.querySelector("[name='new_password']").value = "";
+    accountForm.querySelector("[name='password_confirm']").value = "";
+    showApp();
+    showAccountEditor(false);
+    showToast("Account updated");
+  } catch (error) {
+    $("#accountError").textContent = error.message;
+  } finally {
+    submitButton.disabled = false;
+  }
 });
 
 $("#userForm").addEventListener("submit", async (event) => {
@@ -766,10 +841,20 @@ $("#userList").addEventListener("click", async (event) => {
     }
     await loadUsers();
   } catch (error) {
-    alert(error.message);
+    showToast(error.message);
   } finally {
     button.disabled = false;
   }
 });
+
+function showToast(message) {
+  const host = $("#psu-toast-host");
+  if (!host) return;
+  const node = document.createElement("div");
+  node.className = "psu-toast";
+  node.textContent = message;
+  host.replaceChildren(node);
+  setTimeout(() => node.remove(), 3200);
+}
 
 boot();

@@ -115,6 +115,14 @@ class PasswordPayload(BaseModel):
     password: str = Field(min_length=12, max_length=4096)
 
 
+class ProfileUpdatePayload(BaseModel):
+    display_name: str = Field(min_length=1, max_length=120)
+    username: str = Field(min_length=3, max_length=80)
+    current_password: str = Field(default="", max_length=4096)
+    new_password: str = Field(default="", max_length=4096)
+    password_confirm: str = Field(default="", max_length=4096)
+
+
 class PermanentPayload(BaseModel):
     is_permanent: bool
 
@@ -1384,6 +1392,50 @@ def me(
 ) -> dict[str, Any]:
     ensure_csrf_cookie(request, response)
     return {"user": user}
+
+
+@app.put("/api/me")
+def update_me(
+    payload: ProfileUpdatePayload,
+    _csrf: None = Depends(require_csrf),
+    user: dict[str, Any] = Depends(get_current_user),
+) -> dict[str, Any]:
+    username = validate_username_value(payload.username)
+    display_name = payload.display_name.strip()
+    new_password = payload.new_password.strip()
+    password_confirm = payload.password_confirm.strip()
+    current_password = payload.current_password
+
+    if new_password or password_confirm:
+        if new_password != password_confirm:
+            raise HTTPException(status_code=400, detail="Password confirmation does not match")
+        if not current_password:
+            raise HTTPException(status_code=400, detail="Current password is required")
+        validate_password_strength(new_password, username)
+
+    try:
+        with connect() as conn:
+            row = conn.execute("SELECT * FROM users WHERE id = ?", (user["id"],)).fetchone()
+            if not row:
+                raise HTTPException(status_code=404, detail="User not found")
+            if new_password and not verify_password(current_password, row["password_hash"]):
+                raise HTTPException(status_code=403, detail="Current password is invalid")
+
+            if new_password:
+                conn.execute(
+                    "UPDATE users SET username = ?, display_name = ?, password_hash = ? WHERE id = ?",
+                    (username, display_name, hash_password(new_password), user["id"]),
+                )
+            else:
+                conn.execute(
+                    "UPDATE users SET username = ?, display_name = ? WHERE id = ?",
+                    (username, display_name, user["id"]),
+                )
+            updated = conn.execute("SELECT * FROM users WHERE id = ?", (user["id"],)).fetchone()
+    except sqlite3.IntegrityError:
+        raise HTTPException(status_code=409, detail="Username already exists") from None
+
+    return {"user": user_public(updated)}
 
 
 @app.get("/api/downloads")

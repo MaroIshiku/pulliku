@@ -483,19 +483,7 @@ svg {
   object-fit: contain;
 }
 
-.user-sheet {
-  position: fixed;
-  inset: 0;
-  z-index: 100;
-}
-
-.sheet-backdrop {
-  position: fixed;
-  inset: 0;
-  background: var(--color-scrim);
-}
-
-.sheet-panel {
+.pulliku-profile-sheet {
   position: fixed;
   top: var(--space-4);
   right: var(--space-4);
@@ -516,6 +504,93 @@ svg {
 .sheet-section {
   display: grid;
   gap: var(--space-3);
+}
+
+.menu-accordion,
+.account-edit-view {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.account-panel-button {
+  width: 100%;
+  border: 0;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  grid-template-columns: 64px 1fr 24px;
+}
+
+.account-panel-button:hover {
+  background: var(--color-secondary-container);
+}
+
+.account-panel-chevron {
+  inline-size: 22px;
+  block-size: 22px;
+  color: var(--color-primary);
+}
+
+.account-back-button {
+  justify-self: start;
+  padding-inline-start: 0;
+}
+
+.account-back-button svg {
+  inline-size: 18px;
+  block-size: 18px;
+}
+
+.sheet-accordion {
+  gap: 0;
+  border: 1px solid var(--color-outline);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: var(--color-surface);
+}
+
+.sheet-accordion-trigger {
+  min-block-size: 54px;
+  width: 100%;
+  border: 0;
+  padding: var(--space-3) var(--space-4);
+  background: transparent;
+  color: var(--color-on-surface);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  font: inherit;
+  font-size: var(--type-title-small-size);
+  line-height: var(--type-title-small-line);
+  font-weight: 780;
+  text-align: left;
+  cursor: pointer;
+}
+
+.sheet-accordion-trigger:hover {
+  background: var(--color-surface-soft);
+}
+
+.sheet-accordion-trigger svg {
+  inline-size: 20px;
+  block-size: 20px;
+  color: var(--color-primary);
+  transition: transform var(--duration-normal) var(--ease-standard);
+}
+
+.sheet-accordion-trigger[aria-expanded="true"] {
+  background: var(--color-surface-soft);
+}
+
+.sheet-accordion-trigger[aria-expanded="true"] svg {
+  transform: rotate(180deg);
+}
+
+.sheet-accordion-panel {
+  display: grid;
+  gap: var(--space-3);
+  padding: 0 var(--space-4) var(--space-4);
 }
 
 .profile-menu-list {
@@ -539,6 +614,29 @@ svg {
 
 .theme-grid .psu-chip {
   justify-content: center;
+}
+
+.psu-toast-host {
+  position: fixed;
+  z-index: 140;
+  inset-inline: var(--space-4);
+  inset-block-end: calc(var(--space-4) + env(safe-area-inset-bottom));
+  display: grid;
+  justify-items: center;
+  pointer-events: none;
+}
+
+.psu-toast {
+  inline-size: min(100%, 520px);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-outline);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-raised);
+  color: var(--color-on-surface);
+  box-shadow: var(--shadow-soft);
+  font-size: var(--type-body-medium-size);
+  line-height: var(--type-body-medium-line);
+  text-align: center;
 }
 
 .about-grid {
@@ -587,7 +685,7 @@ svg {
     padding: var(--space-3) var(--app-shell-mobile-padding) calc(var(--space-6) + env(safe-area-inset-bottom));
   }
 
-  .sheet-panel {
+  .pulliku-profile-sheet {
     top: auto;
     right: 0;
     bottom: 0;
