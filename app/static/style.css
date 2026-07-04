@@ -553,6 +553,11 @@ svg {
   background: color-mix(in srgb, var(--color-surface) 82%, var(--color-surface-soft));
 }
 
+.sheet-accordion[data-open="true"] {
+  background: color-mix(in srgb, var(--color-surface-soft) 86%, var(--color-primary-container));
+  border-color: color-mix(in srgb, var(--color-outline) 72%, var(--color-primary));
+}
+
 .sheet-accordion-trigger {
   min-block-size: 54px;
   width: 100%;
@@ -584,7 +589,11 @@ svg {
 }
 
 .sheet-accordion-trigger[aria-expanded="true"] {
-  background: color-mix(in srgb, var(--color-surface-soft) 86%, var(--color-primary-container));
+  background: transparent;
+}
+
+.sheet-accordion[data-open="true"] .sheet-accordion-trigger:hover {
+  background: transparent;
 }
 
 .sheet-accordion-trigger[aria-expanded="true"] svg {
@@ -594,7 +603,7 @@ svg {
 .sheet-accordion-panel {
   display: grid;
   gap: var(--space-3);
-  padding: 0 var(--space-4) var(--space-4);
+  padding: var(--space-3) var(--space-4) var(--space-4);
 }
 
 .profile-signout-button {
