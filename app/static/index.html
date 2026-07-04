@@ -8,7 +8,7 @@
     <meta name="apple-mobile-web-app-title" content="Pulliku" />
     <title>Pulliku</title>
     <link rel="icon" href="/static/pulliku-logo.png" />
-    <link rel="stylesheet" href="/static/style.css?v=20260704a" />
+    <link rel="stylesheet" href="/static/style.css?v=20260704b" />
   </head>
   <body>
     <div id="iconSprite" hidden aria-hidden="true"></div>
@@ -372,13 +372,14 @@
               <div id="userList" class="user-list"></div>
             </div>
           </section>
-        </div>
 
-        <div class="psu-list profile-menu-list">
-          <button id="logoutButton" class="psu-list-row" type="button">
-            <svg class="psu-list-row__icon"><use href="#psu-icon-logout"></use></svg>
-            <span class="psu-list-row__label">Sign out</span>
-            <span></span>
+          <button id="logoutButton" class="profile-signout-button" type="button">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+              <path d="M16 17l5-5-5-5"></path>
+              <path d="M21 12H9"></path>
+            </svg>
+            <span>Sign out</span>
           </button>
         </div>
       </section>
@@ -386,6 +387,6 @@
 
     <div id="psu-toast-host" class="psu-toast-host" aria-live="polite" aria-atomic="true"></div>
 
-    <script src="/static/app.js?v=20260704a"></script>
+    <script src="/static/app.js?v=20260704b"></script>
   </body>
 </html>

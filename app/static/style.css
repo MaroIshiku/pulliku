@@ -491,7 +491,7 @@ svg {
   width: min(440px, calc(100vw - 32px));
   display: grid;
   align-content: start;
-  gap: var(--space-5);
+  gap: var(--space-4);
   overflow: auto;
   padding: var(--space-5);
   border: 1px solid var(--color-outline);
@@ -510,6 +510,10 @@ svg {
 .account-edit-view {
   display: grid;
   gap: var(--space-3);
+}
+
+.pulliku-profile-sheet .psu-account-card {
+  margin-block: var(--space-2);
 }
 
 .account-panel-button {
@@ -546,7 +550,7 @@ svg {
   border: 1px solid var(--color-outline);
   border-radius: var(--radius-lg);
   overflow: hidden;
-  background: var(--color-surface);
+  background: color-mix(in srgb, var(--color-surface) 82%, var(--color-surface-soft));
 }
 
 .sheet-accordion-trigger {
@@ -569,7 +573,7 @@ svg {
 }
 
 .sheet-accordion-trigger:hover {
-  background: var(--color-surface-soft);
+  background: color-mix(in srgb, var(--color-surface-soft) 86%, var(--color-primary-container));
 }
 
 .sheet-accordion-trigger svg {
@@ -580,7 +584,7 @@ svg {
 }
 
 .sheet-accordion-trigger[aria-expanded="true"] {
-  background: var(--color-surface-soft);
+  background: color-mix(in srgb, var(--color-surface-soft) 86%, var(--color-primary-container));
 }
 
 .sheet-accordion-trigger[aria-expanded="true"] svg {
@@ -593,8 +597,34 @@ svg {
   padding: 0 var(--space-4) var(--space-4);
 }
 
-.profile-menu-list {
-  margin-block-start: var(--space-2);
+.profile-signout-button {
+  min-block-size: 54px;
+  width: 100%;
+  border: 1px solid var(--color-outline);
+  border-radius: var(--radius-pill);
+  padding: 0 var(--space-5);
+  background: var(--color-surface);
+  color: var(--color-primary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  font: inherit;
+  font-size: var(--type-label-large-size);
+  line-height: var(--type-label-large-line);
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.profile-signout-button:hover {
+  background: var(--color-danger-container);
+  color: var(--color-on-danger-container);
+  border-color: transparent;
+}
+
+.profile-signout-button svg {
+  inline-size: 22px;
+  block-size: 22px;
 }
 
 .app-identity-card {
@@ -613,7 +643,20 @@ svg {
 }
 
 .theme-grid .psu-chip {
+  min-block-size: 34px;
   justify-content: center;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.sheet-accordion-panel .psu-segmented-control {
+  inline-size: 100%;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.sheet-accordion-panel .psu-segmented-control button {
+  min-inline-size: 0;
+  padding-inline: var(--space-2);
 }
 
 .psu-toast-host {

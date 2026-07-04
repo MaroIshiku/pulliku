@@ -349,7 +349,6 @@ function setMenuSection(openSection) {
 function showAccountEditor(open) {
   $("#accountEditView").hidden = !open;
   $("#menuAccordion").hidden = open;
-  $(".profile-menu-list").hidden = open;
   $("#accountPanelButton").hidden = open;
   if (open) {
     hydrateAccountForm();
