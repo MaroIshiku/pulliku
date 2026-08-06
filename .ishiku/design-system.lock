@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "contract": {
+    "id": "ishiku-design-5",
+    "version": "5.0.0",
+    "sha256": "46628d1b69e5c27c3a339a31afbb7c3bed8d148b2fb0916c975407d86e9a1516"
+  },
+  "application": {
+    "id": "pulliku",
+    "authentication": "standard-account",
+    "locale": "en"
+  },
+  "implementation": [
+    {
+      "path": "app/static/design-system/components.css",
+      "sha256": "dd3a85d04fb300e618e24ec5c2e53cf80ca357438553d49691cca62912cc7b6b",
+      "roles": [
+        "components"
+      ]
+    },
+    {
+      "path": "app/static/design-system/theme-controller.js",
+      "sha256": "18f5c84e364c72ebed6482ba769d069ab01d34cce16ee48347420f18a017f54e",
+      "roles": [
+        "theme-controller"
+      ]
+    },
+    {
+      "path": "app/static/design-system/tokens.css",
+      "sha256": "baa3a0b362f59dcfc365240a3fd3f5697cbcdb2546319037f3faccec01f9d1a3",
+      "roles": [
+        "tokens"
+      ]
+    },
+    {
+      "path": "app/static/icons/psu-icons.svg",
+      "sha256": "194bae32660f50af3938a72c1141f138e5c4150ca5634c3c036564a76e92bd94",
+      "roles": [
+        "icons"
+      ]
+    }
+  ]
+}

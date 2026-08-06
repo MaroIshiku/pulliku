@@ -21,7 +21,6 @@ secrets/*.txt
 # published Pulliku repository.
 app_spec.yaml
 githubrepo.txt
-pixel_soft_utility_codex_pack_v4/
 
 # ishiku workspace boundary
 .env
