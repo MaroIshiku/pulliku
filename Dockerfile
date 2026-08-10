@@ -45,7 +45,7 @@ RUN apk add --no-cache \
     && LD_LIBRARY_PATH=/opt/ffmpeg/lib /opt/ffmpeg/bin/ffmpeg -version \
     && LD_LIBRARY_PATH=/opt/ffmpeg/lib /opt/ffmpeg/bin/ffprobe -version
 
-FROM denoland/deno:alpine-2.8.3@sha256:9eb3b9b8bd4f821de57239792f76f6a3bef29a7bfbd486b801cbf34fc2c32797
+FROM denoland/deno:alpine-2.9.5@sha256:b49ac52f05c3d8d0da890b6628168e9bfb5721f7bccc00305bb3ad29ed0e40af
 
 ARG APP_VERSION=0.1.1
 ARG APP_BUILD_SHA=dev
