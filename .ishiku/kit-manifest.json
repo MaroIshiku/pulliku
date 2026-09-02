@@ -112,7 +112,7 @@
     },
     {
       "path": ".github/workflows/ishiku-pull-request-verify.yml",
-      "sha256": "cf265c11bdbf23966c2227178fe16a919cfcf125e6233aa219ad5c6c387e356a"
+      "sha256": "532c552294adc9f8a17bfe29c63983900ab1e8c95575abe2f2ee1f9f83c3b15d"
     },
     {
       "path": ".github/workflows/ishiku-release-release.yml",

@@ -32,7 +32,7 @@
     ".agents/skills/ishiku-test-engineer/SKILL.md": "bc06757065eb9d992b6836e22e2ea1645a285cfd6b769a1d54083605b4b93469",
     ".agents/skills/ishiku-upstream-maintenance/agents/openai.yaml": "e3c10f092098edd602575e42ebac7444540cbe9d66767d5e601e70ff875bd24e",
     ".agents/skills/ishiku-upstream-maintenance/SKILL.md": "db8985e0b4aeca8b7a75f81a2f81de1f1abf82d394fdd770b0628c86d7829100",
-    ".github/workflows/ishiku-pull-request-verify.yml": "cf265c11bdbf23966c2227178fe16a919cfcf125e6233aa219ad5c6c387e356a",
+    ".github/workflows/ishiku-pull-request-verify.yml": "532c552294adc9f8a17bfe29c63983900ab1e8c95575abe2f2ee1f9f83c3b15d",
     ".github/workflows/ishiku-release-release.yml": "a5ceef78d677e7c5bc06192dda00bf978c389a1b94326b84bc96e500d8d5ca1f",
     ".github/workflows/ishiku-upstream-update-upstream-update.yml": "a2d6630c1c13ee2e073f50b5ece4706369032db83969b10a5073580372978916",
     ".ishiku/kit/platform.yaml": "c91fcfff614fdbcf9d2be37a1accdfb983cc64e5e341bc838a720e5143ff31df",
