@@ -105,15 +105,16 @@ function validateAppSpec(repo, checks) {
   return spec;
 }
 
-function validateTraceability(repo, spec, checks, requireVerified = false) {
+function validateTraceability(repo, spec, checks, requireVerified = false, allowedUnverified = new Set()) {
   const file = join(repo, '.ishiku', 'requirements', 'traceability.yaml');
   check(existsSync(file), 'TRACE-001', 'traceability matrix exists', checks);
-  if (!existsSync(file) || !spec) return;
+  if (!existsSync(file) || !spec) return [];
   let trace;
   try { trace = parseConfig(file); } catch (error) {
     checks.push({ id: 'TRACE-002', outcome: 'fail', message: error.message });
-    return;
+    return [];
   }
+  const unverified = [];
   const rows = new Map((trace.requirements ?? []).map((row) => [row.id, row]));
   for (const requirement of spec.requirements ?? []) {
     const row = rows.get(requirement.id);
@@ -124,8 +125,14 @@ function validateTraceability(repo, spec, checks, requireVerified = false) {
     const mandatory = ['critical', 'high'].includes(requirement.priority);
     check(!mandatory || testCount > 0, 'TRACE-TEST', `${requirement.id} mandatory test coverage`, checks);
     check(!requirement.security_critical || (row.tests?.security?.length ?? 0) > 0, 'TRACE-SECURITY', `${requirement.id} security coverage`, checks);
-    if (requireVerified) check(row.status === 'verified', 'TRACE-VERIFIED', `${requirement.id} has executed verification evidence`, checks);
+    if (requireVerified && row.status !== 'verified') {
+      unverified.push(requirement.id);
+      if (!allowedUnverified.has('*') && !allowedUnverified.has(requirement.id)) {
+        check(false, 'TRACE-VERIFIED', `${requirement.id} has executed verification evidence`, checks);
+      }
+    }
   }
+  return unverified;
 }
 
 function trackedFiles(repo) {
@@ -237,15 +244,21 @@ function verifyRepository(appRoot, options = {}) {
     check(project.platform?.authentication === expectedAuth, 'PROJECT-AUTH', 'authentication profile matches approved exceptions', checks);
   }
   const spec = validateAppSpec(repo, checks);
-  validateTraceability(repo, spec, checks, options.full);
+  const unverifiedRequirements = validateTraceability(
+    repo,
+    spec,
+    checks,
+    options.full,
+    options.allowedUnverifiedRequirements ?? new Set(),
+  );
   boundaryAndSecretChecks(repo, checks);
   workflowChecks(repo, checks);
   designChecks(repo, checks);
   manifestChecks(repo, checks);
   if (options.full && project) runProjectCommands(repo, project, checks);
   const failed = checks.filter((item) => item.outcome === 'fail');
-  const status = failed.length === 0 && options.full ? 'VERIFIED' : 'IMPLEMENTED_BUT_NOT_VERIFIED';
-  const report = { schema_version: 1, application: workspace?.application?.id ?? basename(appRoot), timestamp: new Date().toISOString(), mode: options.full ? 'full' : 'structural', status, summary: { passed: checks.length - failed.length, failed: failed.length }, checks };
+  const status = failed.length === 0 && options.full && unverifiedRequirements.length === 0 ? 'VERIFIED' : 'IMPLEMENTED_BUT_NOT_VERIFIED';
+  const report = { schema_version: 1, application: workspace?.application?.id ?? basename(appRoot), timestamp: new Date().toISOString(), mode: options.full ? 'full' : 'structural', status, summary: { passed: checks.length - failed.length, failed: failed.length, unverified_requirements: unverifiedRequirements.length }, unverified_requirements: unverifiedRequirements, checks };
   if (existsSync(repo)) writeJson(join(repo, '.ishiku', 'reports', `verification-${options.full ? 'full' : 'structural'}.json`), report);
   return report;
 }
@@ -400,10 +413,16 @@ function createApp(id, displayName) {
 
 if (!command) fail('Usage: ishiku.mjs <command> [path] [options]');
 const full = args.includes('--full');
+const allowedUnverifiedArgument = args.find((arg) => arg === '--allow-unverified-requirements' || arg.startsWith('--allow-unverified-requirements='));
+const allowedUnverifiedRequirements = new Set(
+  allowedUnverifiedArgument
+    ? (allowedUnverifiedArgument.includes('=') ? allowedUnverifiedArgument.slice(allowedUnverifiedArgument.indexOf('=') + 1).split(',').filter(Boolean) : ['*'])
+    : [],
+);
 const positionals = args.filter((arg) => !arg.startsWith('--'));
 switch (command) {
   case 'verify-workspace': verifyWorkspace(positionals[0] ?? '.', { full }); break;
-  case 'verify-app': printReport(verifyRepository(resolve(positionals[0] ?? '.'), { full })); break;
+  case 'verify-app': printReport(verifyRepository(resolve(positionals[0] ?? '.'), { full, allowedUnverifiedRequirements })); break;
   case 'check-appspec':
   case 'check-requirements':
   case 'check-architecture':

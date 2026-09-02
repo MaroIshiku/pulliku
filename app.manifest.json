@@ -36,7 +36,7 @@
     "github_owner": "MaroIshiku",
     "public_repository": true,
     "short_description": "Pulliku is a calm, self-hosted web interface for media downloads.",
-    "docker_image": "ghcr.io/maroishiku/pulliku:0.1.1",
+    "docker_image": "ghcr.io/maroishiku/pulliku:0.2.0",
     "codex_notice_enabled": true
   }
 }

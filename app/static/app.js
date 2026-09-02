@@ -368,7 +368,7 @@ function renderAboutInfo() {
   const rows = [
     ["App Name", APP_NAME],
     ["Interface", APP_SUBTITLE],
-    ["Pulliku version", payload.version || "0.1.1"],
+    ["Pulliku version", payload.version || "0.2.0"],
     ["GitHub SHA", shortSha],
     ["Build date", payload.build_date || "unknown"],
     ["Data directory", payload.data_dir || "unknown"],

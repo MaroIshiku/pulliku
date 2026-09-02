@@ -3,11 +3,11 @@ name: ishiku verify
 on:
   workflow_call:
     inputs:
-      require_all_verified:
-        description: Fail unless every AppSpec requirement has executed verification evidence
+      allowed_unverified_requirements:
+        description: Comma-separated requirement IDs that may await external evidence
         required: false
-        type: boolean
-        default: true
+        type: string
+        default: ''
   pull_request:
   push:
     branches: [main]
@@ -33,12 +33,12 @@ jobs:
           node-version: 24
       - name: Verify independently cloned app
         env:
-          REQUIRE_ALL_VERIFIED: ${{ github.event_name == 'workflow_call' && inputs.require_all_verified }}
+          ALLOWED_UNVERIFIED_REQUIREMENTS: ${{ github.event_name == 'workflow_call' && inputs.allowed_unverified_requirements || '*' }}
         run: |
-          if [ "$REQUIRE_ALL_VERIFIED" = "true" ]; then
+          if [ -z "$ALLOWED_UNVERIFIED_REQUIREMENTS" ]; then
             node .ishiku/kit/scripts/verify-app . --full
           else
-            node .ishiku/kit/scripts/verify-app . --full --allow-unverified-requirements
+            node .ishiku/kit/scripts/verify-app . --full "--allow-unverified-requirements=$ALLOWED_UNVERIFIED_REQUIREMENTS"
           fi
       - name: Upload verification evidence
         if: always()

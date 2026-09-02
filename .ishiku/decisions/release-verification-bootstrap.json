@@ -1,0 +1,17 @@
+{
+  "id": "DEC-003",
+  "date": "2026-09-02",
+  "decision": "Allow only REL-001 to await external evidence during the immutable v0.2.0 release run.",
+  "rationale": "REL-001 requires a successfully published image digest, vulnerability scan, SBOM, provenance attestation, and GitHub release. Those artifacts cannot exist before the first release workflow runs.",
+  "scope": {
+    "tag": "v0.2.0",
+    "allowed_unverified_requirement": "REL-001",
+    "all_other_requirements_must_be_verified": true,
+    "all_project_verification_commands_must_pass": true
+  },
+  "consequences": [
+    "The v0.2.0 release may proceed only while REL-001 is the sole requirement awaiting evidence.",
+    "The release evidence must be recorded and REL-001 marked verified immediately after the workflow succeeds.",
+    "Every later release requires all requirements to be verified before publication."
+  ]
+}

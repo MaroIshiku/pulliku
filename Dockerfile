@@ -49,7 +49,7 @@ FROM denoland/deno:alpine-2.8.3@sha256:9eb3b9b8bd4f821de57239792f76f6a3bef29a7bf
 
 FROM alpine:3.23@sha256:fd791d74b68913cbb027c6546007b3f0d3bc45125f797758156952bc2d6daf40 AS runtime-base
 
-ARG VERSION=0.1.1
+ARG VERSION=0.2.0
 ARG GIT_SHA=dev
 ARG BUILD_DATE=unknown
 ARG APP_VERSION=${VERSION}
@@ -94,9 +94,16 @@ COPY --from=deno-runtime /usr/local/lib/glibc /usr/local/lib/glibc
 COPY app ./app
 COPY docker-entrypoint.sh /usr/local/bin/pulliku-entrypoint
 
-RUN mkdir -p /data /downloads /run/secrets \
-    && mkdir -p /lib64 \
-    && ln -sf /usr/local/lib/glibc/ld-linux-x86-64.so.2 /lib64/ld-linux-x86-64.so.2 \
+RUN architecture="$(apk --print-arch)" \
+    && case "$architecture" in \
+      x86_64) loader=ld-linux-x86-64.so.2 ;; \
+      aarch64) loader=ld-linux-aarch64.so.1 ;; \
+      *) echo "Unsupported Deno runtime architecture: $architecture" >&2; exit 1 ;; \
+    esac \
+    && test -f "/usr/local/lib/glibc/$loader" \
+    && mkdir -p /data /downloads /run/secrets /lib64 \
+    && ln -sf "/usr/local/lib/glibc/$loader" "/lib64/$loader" \
+    && deno --version \
     && chown -R pulliku:pulliku /app /data /downloads /run/secrets \
     && chmod 755 /usr/local/bin/pulliku-entrypoint
 
