@@ -433,7 +433,7 @@ function renderDownloads() {
   if (!state.downloads.length) {
     target.innerHTML = `
       <div class="empty-state">
-        <img src="/static/pulliku-logo.png" alt="" />
+        <img src="/static/app-icons/icon-512.png" alt="" />
         <div>
           <strong>No downloads</strong>
           <div class="meta">Add a URL to start the first Pulliku queue item.</div>
@@ -787,6 +787,14 @@ $("#accountForm").addEventListener("submit", async (event) => {
         password_confirm: form.get("password_confirm") || "",
       }),
     });
+    if (payload.reauthenticate) {
+      state.user = null;
+      accountForm.reset();
+      closeUserMenu();
+      showLogin();
+      showToast("Password updated. Sign in again.");
+      return;
+    }
     state.user = payload.user;
     accountForm.querySelector("[name='current_password']").value = "";
     accountForm.querySelector("[name='new_password']").value = "";
@@ -831,18 +839,43 @@ $("#userList").addEventListener("click", async (event) => {
     if (button.dataset.userAction === "delete") {
       await api(`/api/admin/users/${id}`, { method: "DELETE" });
     } else if (button.dataset.userAction === "password") {
-      const password = prompt("New password");
-      if (!password) return;
-      await api(`/api/admin/users/${id}/password`, {
-        method: "PUT",
-        body: JSON.stringify({ password }),
-      });
+      const dialog = $("#resetPasswordDialog");
+      const form = $("#resetPasswordForm");
+      form.reset();
+      form.elements.user_id.value = id;
+      $("#resetPasswordError").textContent = "";
+      dialog.showModal();
+      form.elements.password.focus();
+      return;
     }
     await loadUsers();
   } catch (error) {
     showToast(error.message);
   } finally {
     button.disabled = false;
+  }
+});
+
+$("#resetPasswordCancel").addEventListener("click", () => $("#resetPasswordDialog").close());
+
+$("#resetPasswordForm").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const submitButton = form.querySelector("button[type='submit']");
+  const data = new FormData(form);
+  $("#resetPasswordError").textContent = "";
+  submitButton.disabled = true;
+  try {
+    await api(`/api/admin/users/${data.get("user_id")}/password`, {
+      method: "PUT",
+      body: JSON.stringify({ password: data.get("password") }),
+    });
+    $("#resetPasswordDialog").close();
+    showToast("Password reset and sessions revoked");
+  } catch (error) {
+    $("#resetPasswordError").textContent = error.message;
+  } finally {
+    submitButton.disabled = false;
   }
 });
 

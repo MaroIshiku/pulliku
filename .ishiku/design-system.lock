@@ -13,7 +13,7 @@
   "implementation": [
     {
       "path": "app/static/design-system/components.css",
-      "sha256": "0c4d41f39cb800336377ad28367521869fa53761782e68d25986b081fa3649d0",
+      "sha256": "81177a48457f341a66b5eb5b17a4cb45c3d2ab3a7a38c465817030b35512a450",
       "roles": [
         "components"
       ]

@@ -4,12 +4,12 @@
   "app_subtitle": "Media Download Interface",
   "app_symbol": "download",
   "app_logo": {
-    "src": "/static/pulliku-logo.png",
-    "favicon": "/static/pulliku-logo.png",
+    "src": "/static/app-icons/icon-512.png",
+    "favicon": "/static/app-icons/favicon-32.png",
     "alt": "",
     "use_as_header_symbol": true,
     "use_as_favicon": true,
-    "use_as_pwa_icon": false,
+    "use_as_pwa_icon": true,
     "use_as_about_symbol": true,
     "use_as_profile_sheet_symbol": true,
     "use_as_empty_state_symbol": true
@@ -36,7 +36,7 @@
     "github_owner": "MaroIshiku",
     "public_repository": true,
     "short_description": "Pulliku is a calm, self-hosted web interface for media downloads.",
-    "docker_image": "ghcr.io/maroishiku/pulliku:latest",
+    "docker_image": "ghcr.io/maroishiku/pulliku:0.1.1",
     "codex_notice_enabled": true
   }
 }

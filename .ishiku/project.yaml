@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "kit_version": "1.1.1",
+  "kit_version": "1.2.1",
   "application": {
     "id": "pulliku",
     "name": "Pulliku",
@@ -10,7 +10,7 @@
   "platform": {
     "profile": "fastapi-ytdlp-adapter",
     "authentication": "standard-account",
-    "design_system": "ishiku-design-5",
+    "design_system": "ishiku-design-1",
     "security_baseline": "level-2",
     "locale": "en"
   },
@@ -37,7 +37,12 @@
       },
       {
         "name": "application",
-        "command": "python -m compileall -q app",
+        "command": "python -m compileall -q app tests",
+        "required_for_verified": true
+      },
+      {
+        "name": "security-tests",
+        "command": "docker build --load --target test -t pulliku:test .",
         "required_for_verified": true
       },
       {
@@ -47,7 +52,7 @@
       },
       {
         "name": "container",
-        "command": "docker build -t pulliku:verify .",
+        "command": "docker build --load -t pulliku:verify .",
         "required_for_verified": true
       }
     ]
@@ -57,16 +62,6 @@
       "id": "yt-dlp",
       "source": "https://github.com/yt-dlp/yt-dlp",
       "strategy": "dependency"
-    },
-    {
-      "id": "ffmpeg",
-      "source": "https://github.com/FFmpeg/FFmpeg",
-      "strategy": "generated"
-    },
-    {
-      "id": "atomicparsley",
-      "source": "https://github.com/wez/atomicparsley",
-      "strategy": "generated"
     }
   ]
 }

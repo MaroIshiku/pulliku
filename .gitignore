@@ -29,10 +29,15 @@ githubrepo.txt
 private/
 planning/
 references/
+!.agents/skills/ishiku-icon-generator/references/
+!.agents/skills/ishiku-icon-generator/references/raster-source.md
+!.agents/skills/ishiku-icon-generator/references/webapp-import.md
 source-assets/
+*-Marlo_Desktop.*
 *.sqlite
 *.sqlite3
 *.db
 *.bak
 .ishiku/reports/*.json
 !.ishiku/reports/ops-001-verification.json
+!.ishiku/reports/ui-001-visual-review.json

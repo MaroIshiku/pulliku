@@ -1,0 +1,26 @@
+schema_version: 1
+application: pulliku
+purpose: "Controlled self-hosted media downloads through yt-dlp."
+symbol_rationale: "Media display with a play symbol and download badge."
+category: "Files & Transfers"
+palette:
+  tile: "#8EE8CE"
+  accent: "#006C54"
+  light_element: "warm off-white"
+generation_path: built-in-imagegen-approved-source
+native_source_dimensions: 1254x1254
+source_mode: RGBA
+export_method: direct-lanczos-downsample-no-crop-no-mask-change
+alpha_margin_px:
+  left: 17
+  top: 21
+  right: 16
+  bottom: 30
+alpha_margin_max_ratio: 0.023923
+consumer_paths:
+  - app/static/app-icons
+  - app/static/index.html
+  - app/static/manifest.webmanifest
+  - app.manifest.json
+  - docker-compose.yml
+  - docker-compose.zimaos-ui.yml

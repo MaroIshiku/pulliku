@@ -5,11 +5,14 @@
     {
       "id": "CORE-001",
       "implementation": [
-        "app/"
+        "app/main.py",
+        "app/static/app.js",
+        "app/static/index.html"
       ],
       "tests": {
         "unit": [],
         "integration": [
+          "tests/test_security.py",
           ".ishiku/kit/scripts/compliance-test"
         ],
         "e2e": [],
@@ -22,16 +25,18 @@
     {
       "id": "AUTH-001",
       "implementation": [
-        "See migration inventory and application source."
+        "app/main.py",
+        "docker-entrypoint.sh"
       ],
       "tests": {
         "unit": [],
         "integration": [
-          ".ishiku/kit/scripts/compliance-test"
+          "tests/test_security.py"
         ],
         "e2e": [],
         "security": [
-          ".ishiku/kit/scripts/compliance-test"
+          "tests/test_security.py",
+          ".ishiku/kit/scripts/check-security"
         ]
       },
       "status": "verified"
@@ -39,14 +44,19 @@
     {
       "id": "UI-001",
       "implementation": [
-        "See migration inventory and application source."
+        "app/static/index.html",
+        "app/static/app.js",
+        "app/static/style.css",
+        "app/static/design-system/"
       ],
       "tests": {
         "unit": [],
         "integration": [
-          ".ishiku/kit/scripts/compliance-test"
+          ".ishiku/kit/scripts/check-design"
         ],
-        "e2e": [],
+        "e2e": [
+          ".ishiku/reports/ui-001-visual-review.json"
+        ],
         "security": [
           ".ishiku/kit/scripts/compliance-test"
         ]
@@ -56,13 +66,16 @@
     {
       "id": "OPS-001",
       "implementation": [
-        "See migration inventory and application source."
+        "Dockerfile",
+        "docker-compose.yml",
+        "docker-compose.zimaos-ui.yml",
+        "README.md"
       ],
       "tests": {
         "unit": [],
         "integration": [
           ".ishiku/reports/ops-001-verification.json",
-          ".ishiku/kit/scripts/compliance-test"
+          ".ishiku/kit/scripts/verify-app"
         ],
         "e2e": [],
         "security": [
@@ -88,7 +101,7 @@
           ".ishiku/kit/scripts/compliance-test"
         ]
       },
-      "status": "verified"
+      "status": "implemented"
     }
   ]
 }

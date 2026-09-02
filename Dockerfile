@@ -45,11 +45,24 @@ RUN apk add --no-cache \
     && LD_LIBRARY_PATH=/opt/ffmpeg/lib /opt/ffmpeg/bin/ffmpeg -version \
     && LD_LIBRARY_PATH=/opt/ffmpeg/lib /opt/ffmpeg/bin/ffprobe -version
 
-FROM denoland/deno:alpine-2.8.3@sha256:9eb3b9b8bd4f821de57239792f76f6a3bef29a7bfbd486b801cbf34fc2c32797
+FROM denoland/deno:alpine-2.8.3@sha256:9eb3b9b8bd4f821de57239792f76f6a3bef29a7bfbd486b801cbf34fc2c32797 AS deno-runtime
 
-ARG APP_VERSION=0.1.1
-ARG APP_BUILD_SHA=dev
-ARG APP_BUILD_DATE=unknown
+FROM alpine:3.23@sha256:fd791d74b68913cbb027c6546007b3f0d3bc45125f797758156952bc2d6daf40 AS runtime-base
+
+ARG VERSION=0.1.1
+ARG GIT_SHA=dev
+ARG BUILD_DATE=unknown
+ARG APP_VERSION=${VERSION}
+ARG APP_BUILD_SHA=${GIT_SHA}
+ARG APP_BUILD_DATE=${BUILD_DATE}
+
+LABEL org.opencontainers.image.title="Pulliku" \
+      org.opencontainers.image.description="Controlled self-hosted media downloads through yt-dlp" \
+      org.opencontainers.image.licenses="NOASSERTION" \
+      org.opencontainers.image.source="https://github.com/MaroIshiku/pulliku" \
+      org.opencontainers.image.version="${APP_VERSION}" \
+      org.opencontainers.image.revision="${APP_BUILD_SHA}" \
+      org.opencontainers.image.created="${APP_BUILD_DATE}"
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -67,19 +80,23 @@ WORKDIR /app
 COPY requirements.txt .
 RUN apk upgrade --no-cache \
     && apk add --no-cache \
-      ca-certificates curl lame-libs libstdc++ openssl opus python3 py3-pip \
-      rtmpdump su-exec zlib \
+      ca-certificates lame-libs libstdc++ openssl opus python3 py3-pip \
+      rtmpdump su-exec tini zlib \
     && addgroup -S -g 10001 pulliku \
     && adduser -S -D -H -u 10001 -G pulliku pulliku \
     && python3 -m venv /opt/venv \
     && pip install --no-cache-dir -r requirements.txt
 COPY --from=atomicparsley-build /build/AtomicParsley /usr/local/bin/AtomicParsley
 COPY --from=ffmpeg-build /opt/ffmpeg /opt/ffmpeg
+COPY --from=deno-runtime /bin/deno /usr/local/bin/deno
+COPY --from=deno-runtime /usr/local/lib/glibc /usr/local/lib/glibc
 
 COPY app ./app
 COPY docker-entrypoint.sh /usr/local/bin/pulliku-entrypoint
 
 RUN mkdir -p /data /downloads /run/secrets \
+    && mkdir -p /lib64 \
+    && ln -sf /usr/local/lib/glibc/ld-linux-x86-64.so.2 /lib64/ld-linux-x86-64.so.2 \
     && chown -R pulliku:pulliku /app /data /downloads /run/secrets \
     && chmod 755 /usr/local/bin/pulliku-entrypoint
 
@@ -88,7 +105,20 @@ EXPOSE 8080
 VOLUME ["/data", "/downloads"]
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=5 \
-    CMD curl -fsS http://localhost:8080/healthz || exit 1
+    CMD wget -q -O /dev/null http://127.0.0.1:8080/readyz || exit 1
 
-ENTRYPOINT ["/tini", "--", "/usr/local/bin/pulliku-entrypoint"]
+ENTRYPOINT ["/sbin/tini", "--", "/usr/local/bin/pulliku-entrypoint"]
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080"]
+
+FROM runtime-base AS test
+USER root
+COPY requirements-test.txt .
+RUN pip install --no-cache-dir -r requirements-test.txt
+COPY tests ./tests
+RUN python -m unittest discover -s tests -v
+
+FROM runtime-base AS final
+RUN pip uninstall -y pip setuptools wheel \
+    && apk del py3-pip
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=5 \
+    CMD wget -q -O /dev/null http://127.0.0.1:8080/readyz || exit 1

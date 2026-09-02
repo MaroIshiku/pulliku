@@ -1,0 +1,11 @@
+{
+  "id": "DEC-002",
+  "date": "2026-08-31",
+  "decision": "Use Argon2id for new passwords and upgrade legacy PBKDF2-SHA256 hashes after successful authentication.",
+  "rationale": "Argon2id meets the current account-security baseline while allowing existing users to migrate without a forced password reset.",
+  "consequences": [
+    "A pre-upgrade backup is required for rollback after any legacy user signs in.",
+    "Rolling back across the password-hash migration requires restoring that backup because the legacy release cannot verify Argon2id hashes.",
+    "Password changes and administrative resets revoke existing sessions."
+  ]
+}

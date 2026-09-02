@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "timestamp": "2026-08-31T18:00:00Z",
+  "application": "pulliku",
+  "requirement_id": "UI-001",
+  "status": "verified",
+  "matrix": {
+    "viewports": ["390x844", "412x915", "768x1024", "1440x900", "1920x1080"],
+    "themes": ["lavender", "mint", "sky", "amber", "rose", "graphite"],
+    "modes": ["light", "dark"],
+    "screenshots": 60,
+    "horizontal_overflows": 0
+  },
+  "axe": {
+    "states": ["login", "dashboard", "password-reset-dialog"],
+    "violations": 0,
+    "serious_or_critical": 0
+  },
+  "icon_review": {
+    "sizes": [32, 64],
+    "backgrounds": ["light", "dark"],
+    "passed": true
+  },
+  "network_404s": 0
+}

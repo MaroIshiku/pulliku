@@ -1,4 +1,17 @@
-@import url("/static/design-system/components.css?v=20260702a");
+dialog.psu-dialog {
+  inset: 0;
+  margin: auto;
+}
+
+dialog.psu-dialog::backdrop {
+  background: var(--color-scrim);
+}
+
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
 
 [hidden] {
   display: none !important;

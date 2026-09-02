@@ -1,4 +1,4 @@
-@import url("./tokens.css");
+@import url("/static/design-system/tokens.css");
 
 *, *::before, *::after { box-sizing: border-box; }
 

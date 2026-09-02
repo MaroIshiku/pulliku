@@ -1,4 +1,5 @@
 fastapi==0.141.1
-uvicorn[standard]==0.52.1
+uvicorn[standard]==0.52.4
 python-multipart==0.0.32
-yt-dlp[default,curl-cffi]
+argon2-cffi==25.1.0
+yt-dlp[default,curl-cffi]==2026.8.19

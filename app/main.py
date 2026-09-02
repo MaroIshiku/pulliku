@@ -2,10 +2,12 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+import ipaddress
 import json
 import os
 import re
 import secrets
+import socket
 import sqlite3
 import subprocess
 import threading
@@ -13,12 +15,15 @@ import time
 import zipfile
 import importlib.metadata
 import importlib.util
+from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Iterator, Literal
 from urllib.parse import urlparse
 from urllib.request import urlopen
 
+from argon2 import PasswordHasher
+from argon2.exceptions import InvalidHashError, VerificationError, VerifyMismatchError
 from fastapi import Depends, FastAPI, Header, HTTPException, Request, Response
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
@@ -33,6 +38,8 @@ DATA_DIR = Path(os.getenv("ISHIKU_DATA_DIR") or os.getenv("APP_DATA_DIR", "./dat
 DOWNLOAD_DIR = Path(os.getenv("DOWNLOAD_DIR", "./downloads")).resolve()
 DB_PATH = DATA_DIR / "app.db"
 SESSION_DAYS = int(os.getenv("SESSION_DAYS", "14"))
+SESSION_IDLE_MINUTES = max(5, int(os.getenv("SESSION_IDLE_MINUTES", "30")))
+RECENT_AUTH_MINUTES = max(1, int(os.getenv("APP_RECENT_AUTH_MINUTES", "15")))
 COOKIE_SECURE = os.getenv("APP_COOKIE_SECURE", "false").lower() == "true"
 COOKIE_SAMESITE = os.getenv("APP_COOKIE_SAMESITE", "strict").lower()
 if COOKIE_SAMESITE not in {"strict", "lax", "none"}:
@@ -56,6 +63,7 @@ LOG_LEVEL = os.getenv("ISHIKU_LOG_LEVEL", "info")
 FILE_RETENTION_DAYS = max(0, int(os.getenv("PULLIKU_FILE_RETENTION_DAYS", "7")))
 CLEANUP_INTERVAL_SECONDS = max(60, int(os.getenv("PULLIKU_CLEANUP_INTERVAL_SECONDS", "3600")))
 APP_PUBLIC_URL = os.getenv("ISHIKU_APP_URL", "").strip().rstrip("/")
+TRUST_PROXY = os.getenv("ISHIKU_TRUST_PROXY", "false").lower() == "true"
 ALLOWED_ORIGIN_VALUES = {
     origin.strip().rstrip("/")
     for origin in os.getenv("ISHIKU_ALLOWED_ORIGINS", "").split(",")
@@ -66,6 +74,8 @@ if APP_PUBLIC_URL:
 SETUP_SECRET_FILE_ENV = "ISHIKU_SETUP_SECRET_FILE"
 SETUP_SECRET_ENV = "ISHIKU_SETUP_SECRET"
 DEFAULT_SETUP_SECRET_FILE = "/run/secrets/ishiku_setup_secret"
+ALLOW_PRIVATE_URLS = os.getenv("PULLIKU_ALLOW_PRIVATE_URLS", "false").lower() == "true"
+PASSWORD_HASHER = PasswordHasher(time_cost=2, memory_cost=19 * 1024, parallelism=1, hash_len=32, salt_len=16)
 
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 DOWNLOAD_DIR.mkdir(parents=True, exist_ok=True)
@@ -140,12 +150,20 @@ def utc_now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-def connect() -> sqlite3.Connection:
+@contextmanager
+def connect() -> Iterator[sqlite3.Connection]:
     conn = sqlite3.connect(DB_PATH, timeout=30)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
     conn.execute("PRAGMA journal_mode = WAL")
-    return conn
+    try:
+        yield conn
+        conn.commit()
+    except BaseException:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
 
 
 def ensure_column(conn: sqlite3.Connection, table: str, column: str, definition: str) -> None:
@@ -173,6 +191,18 @@ def init_db() -> None:
               csrf_token_hash TEXT,
               user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
               expires_at TEXT NOT NULL,
+              created_at TEXT NOT NULL,
+              authenticated_at TEXT,
+              last_seen_at TEXT
+            );
+
+            CREATE TABLE IF NOT EXISTS audit_events (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              actor_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+              action TEXT NOT NULL,
+              target TEXT,
+              result TEXT NOT NULL,
+              request_id TEXT NOT NULL,
               created_at TEXT NOT NULL
             );
 
@@ -206,6 +236,10 @@ def init_db() -> None:
         ensure_column(conn, "users", "display_name", "TEXT")
         ensure_column(conn, "users", "email", "TEXT")
         ensure_column(conn, "sessions", "csrf_token_hash", "TEXT")
+        ensure_column(conn, "sessions", "authenticated_at", "TEXT")
+        ensure_column(conn, "sessions", "last_seen_at", "TEXT")
+        conn.execute("UPDATE sessions SET authenticated_at = COALESCE(authenticated_at, created_at)")
+        conn.execute("UPDATE sessions SET last_seen_at = COALESCE(last_seen_at, created_at)")
         ensure_column(conn, "downloads", "file_size", "INTEGER")
         ensure_column(conn, "downloads", "is_permanent", "INTEGER NOT NULL DEFAULT 0")
         ensure_column(conn, "downloads", "settings_json", "TEXT NOT NULL DEFAULT '{}'")
@@ -248,14 +282,14 @@ def read_setup_secret() -> tuple[str | None, str | None]:
     return None, SETUP_SECRET_ENV
 
 
-def hash_password(password: str) -> str:
+def legacy_hash_password(password: str) -> str:
     iterations = 260_000
     salt = secrets.token_bytes(16)
     digest = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, iterations)
     return f"pbkdf2_sha256${iterations}${salt.hex()}${digest.hex()}"
 
 
-def verify_password(password: str, stored: str) -> bool:
+def verify_legacy_password(password: str, stored: str) -> bool:
     try:
         algorithm, iterations, salt_hex, digest_hex = stored.split("$", 3)
         if algorithm != "pbkdf2_sha256":
@@ -269,6 +303,28 @@ def verify_password(password: str, stored: str) -> bool:
         return hmac.compare_digest(expected, digest_hex)
     except (ValueError, TypeError):
         return False
+
+
+def hash_password(password: str) -> str:
+    return PASSWORD_HASHER.hash(password)
+
+
+def verify_password(password: str, stored: str) -> bool:
+    if stored.startswith("pbkdf2_sha256$"):
+        return verify_legacy_password(password, stored)
+    try:
+        return PASSWORD_HASHER.verify(stored, password)
+    except (InvalidHashError, VerificationError, VerifyMismatchError):
+        return False
+
+
+def password_needs_rehash(stored: str) -> bool:
+    if stored.startswith("pbkdf2_sha256$"):
+        return True
+    try:
+        return PASSWORD_HASHER.check_needs_rehash(stored)
+    except InvalidHashError:
+        return True
 
 
 DUMMY_PASSWORD_HASH = hash_password(secrets.token_urlsafe(32))
@@ -457,6 +513,32 @@ def user_public(row: sqlite3.Row) -> dict[str, Any]:
     }
 
 
+def request_id(request: Request) -> str:
+    return getattr(request.state, "request_id", "unknown")
+
+
+def audit_event(
+    request: Request,
+    action: str,
+    result: str,
+    actor_user_id: int | None = None,
+    target: str | None = None,
+    conn: sqlite3.Connection | None = None,
+) -> None:
+    values = (actor_user_id, action, target, result, request_id(request), utc_now())
+    if conn is not None:
+        conn.execute(
+            "INSERT INTO audit_events (actor_user_id, action, target, result, request_id, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+            values,
+        )
+        return
+    with connect() as audit_conn:
+        audit_conn.execute(
+            "INSERT INTO audit_events (actor_user_id, action, target, result, request_id, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+            values,
+        )
+
+
 def session_token_from_request(request: Request) -> str | None:
     return (
         request.cookies.get(SESSION_COOKIE_NAME)
@@ -470,18 +552,25 @@ def get_current_user(request: Request) -> dict[str, Any]:
     if not session:
         raise HTTPException(status_code=401, detail="Not authenticated")
 
+    now = datetime.now(timezone.utc)
+    idle_cutoff = (now - timedelta(minutes=SESSION_IDLE_MINUTES)).isoformat()
     with connect() as conn:
         row = conn.execute(
             """
-            SELECT users.*
+            SELECT users.*, sessions.token_hash AS session_token_hash
             FROM sessions
             JOIN users ON users.id = sessions.user_id
-            WHERE sessions.token_hash = ? AND sessions.expires_at > ?
+            WHERE sessions.token_hash = ?
+              AND sessions.expires_at > ?
+              AND sessions.last_seen_at > ?
             """,
-            (hash_token(session), utc_now()),
+            (hash_token(session), now.isoformat(), idle_cutoff),
         ).fetchone()
         if not row:
+            conn.execute("DELETE FROM sessions WHERE token_hash = ?", (hash_token(session),))
+            conn.commit()
             raise HTTPException(status_code=401, detail="Session expired")
+        conn.execute("UPDATE sessions SET last_seen_at = ? WHERE token_hash = ?", (now.isoformat(), row["session_token_hash"]))
         return user_public(row)
 
 
@@ -490,9 +579,10 @@ def require_csrf(request: Request, x_csrf_token: str | None = Header(default=Non
     if not session or not x_csrf_token:
         raise HTTPException(status_code=403, detail="Security token missing")
     with connect() as conn:
+        idle_cutoff = (datetime.now(timezone.utc) - timedelta(minutes=SESSION_IDLE_MINUTES)).isoformat()
         row = conn.execute(
-            "SELECT csrf_token_hash FROM sessions WHERE token_hash = ? AND expires_at > ?",
-            (hash_token(session), utc_now()),
+            "SELECT csrf_token_hash FROM sessions WHERE token_hash = ? AND expires_at > ? AND last_seen_at > ?",
+            (hash_token(session), utc_now(), idle_cutoff),
         ).fetchone()
     csrf_hash = row["csrf_token_hash"] if row else None
     if not csrf_hash or not hmac.compare_digest(hash_token(x_csrf_token), csrf_hash):
@@ -526,10 +616,37 @@ def require_admin(user: dict[str, Any] = Depends(get_current_user)) -> dict[str,
     return user
 
 
+def require_recent_admin(request: Request, user: dict[str, Any] = Depends(require_admin)) -> dict[str, Any]:
+    session = session_token_from_request(request)
+    cutoff = (datetime.now(timezone.utc) - timedelta(minutes=RECENT_AUTH_MINUTES)).isoformat()
+    with connect() as conn:
+        recent = conn.execute(
+            "SELECT 1 FROM sessions WHERE token_hash = ? AND authenticated_at > ?",
+            (hash_token(session or ""), cutoff),
+        ).fetchone()
+    if not recent:
+        raise HTTPException(status_code=403, detail="Recent authentication required. Sign in again and retry.")
+    return user
+
+
 def validate_url(url: str) -> str:
-    parsed = urlparse(url.strip())
-    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+    try:
+        parsed = urlparse(url.strip())
+        resolved_port = parsed.port or (443 if parsed.scheme == "https" else 80)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="URL is invalid") from None
+    if parsed.scheme not in {"http", "https"} or not parsed.hostname or parsed.username or parsed.password:
         raise HTTPException(status_code=400, detail="Only http(s) URLs are supported")
+    if not ALLOW_PRIVATE_URLS:
+        hostname = parsed.hostname.rstrip(".")
+        if hostname.lower() == "localhost":
+            raise HTTPException(status_code=400, detail="Private network URLs are not supported")
+        try:
+            addresses = {item[4][0] for item in socket.getaddrinfo(hostname, resolved_port, type=socket.SOCK_STREAM)}
+        except socket.gaierror:
+            raise HTTPException(status_code=400, detail="URL host could not be resolved") from None
+        if not addresses or any(not ipaddress.ip_address(address).is_global for address in addresses):
+            raise HTTPException(status_code=400, detail="Private network URLs are not supported")
     return url.strip()
 
 
@@ -1257,7 +1374,7 @@ def healthz() -> dict[str, str]:
 
 
 @app.get("/readyz")
-def readyz() -> dict[str, Any]:
+def readyz(response: Response) -> dict[str, Any]:
     try:
         with connect() as conn:
             conn.execute("SELECT 1").fetchone()
@@ -1265,6 +1382,8 @@ def readyz() -> dict[str, Any]:
     except sqlite3.Error:
         database_status = "error"
     status = "ok" if database_status == "ok" and DATA_DIR.is_dir() else "degraded"
+    if status != "ok":
+        response.status_code = 503
     setup = setup_state_public()
     return {
         "status": status,
@@ -1289,10 +1408,12 @@ def register_first_admin(payload: SetupRegisterPayload, request: Request) -> dic
     configured_secret, missing_config = read_setup_secret()
     if not configured_secret:
         record_setup_failure(request)
+        audit_event(request, "setup.register", "failed", target="configuration")
         raise HTTPException(status_code=503, detail=f"Setup is not configured. Missing {missing_config or SETUP_SECRET_ENV}.")
     submitted_secret = payload.setup_secret.strip()
     if not submitted_secret or not hmac.compare_digest(submitted_secret, configured_secret):
         record_setup_failure(request)
+        audit_event(request, "setup.register", "failed", target="setup-secret")
         raise HTTPException(status_code=403, detail="Setup secret is invalid")
 
     username = validate_username_value(payload.username)
@@ -1320,6 +1441,7 @@ def register_first_admin(payload: SetupRegisterPayload, request: Request) -> dic
                 (username, display_name, email, hash_password(payload.password), utc_now()),
             )
             set_setup_completed(conn)
+            audit_event(request, "setup.register", "success", actor_user_id=cursor.lastrowid, target=str(cursor.lastrowid), conn=conn)
             conn.commit()
             row = conn.execute("SELECT * FROM users WHERE id = ?", (cursor.lastrowid,)).fetchone()
     except sqlite3.IntegrityError:
@@ -1335,7 +1457,9 @@ def login(payload: LoginPayload, request: Request, response: Response) -> dict[s
     username = payload.username.strip()
     assert_login_allowed(request, username)
     with connect() as conn:
-        conn.execute("DELETE FROM sessions WHERE expires_at <= ?", (utc_now(),))
+        now = datetime.now(timezone.utc)
+        idle_cutoff = (now - timedelta(minutes=SESSION_IDLE_MINUTES)).isoformat()
+        conn.execute("DELETE FROM sessions WHERE expires_at <= ? OR last_seen_at <= ?", (now.isoformat(), idle_cutoff))
         row = conn.execute(
             "SELECT * FROM users WHERE username = ? COLLATE NOCASE",
             (username,),
@@ -1343,14 +1467,19 @@ def login(payload: LoginPayload, request: Request, response: Response) -> dict[s
         stored_hash = row["password_hash"] if row else DUMMY_PASSWORD_HASH
         if not verify_password(payload.password, stored_hash) or not row:
             record_login_failure(request, username)
+            audit_event(request, "auth.login", "failed", target=username.lower()[:80], conn=conn)
+            conn.commit()
             raise HTTPException(status_code=401, detail="Invalid username or password")
 
+        if password_needs_rehash(row["password_hash"]):
+            conn.execute("UPDATE users SET password_hash = ? WHERE id = ?", (hash_password(payload.password), row["id"]))
         token = secrets.token_urlsafe(40)
         csrf_token = secrets.token_urlsafe(32)
-        expires_at = datetime.now(timezone.utc) + timedelta(days=SESSION_DAYS)
+        created_at = now.isoformat()
+        expires_at = now + timedelta(days=SESSION_DAYS)
         conn.execute(
-            "INSERT INTO sessions (token_hash, csrf_token_hash, user_id, expires_at, created_at) VALUES (?, ?, ?, ?, ?)",
-            (hash_token(token), hash_token(csrf_token), row["id"], expires_at.isoformat(), utc_now()),
+            "INSERT INTO sessions (token_hash, csrf_token_hash, user_id, expires_at, created_at, authenticated_at, last_seen_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (hash_token(token), hash_token(csrf_token), row["id"], expires_at.isoformat(), created_at, created_at, created_at),
         )
         conn.execute(
             """
@@ -1365,6 +1494,7 @@ def login(payload: LoginPayload, request: Request, response: Response) -> dict[s
             """,
             (row["id"], row["id"]),
         )
+        audit_event(request, "auth.login", "success", actor_user_id=row["id"], target=str(row["id"]), conn=conn)
         clear_login_failures(request, username)
         set_auth_cookies(response, token, csrf_token)
         return {"user": user_public(row)}
@@ -1380,6 +1510,7 @@ def logout(
     if session:
         with connect() as conn:
             conn.execute("DELETE FROM sessions WHERE token_hash = ?", (hash_token(session),))
+            audit_event(request, "auth.logout", "success", target="current-session", conn=conn)
     delete_auth_cookies(response)
     return {"status": "ok"}
 
@@ -1397,6 +1528,7 @@ def me(
 @app.put("/api/me")
 def update_me(
     payload: ProfileUpdatePayload,
+    request: Request,
     _csrf: None = Depends(require_csrf),
     user: dict[str, Any] = Depends(get_current_user),
 ) -> dict[str, Any]:
@@ -1426,16 +1558,19 @@ def update_me(
                     "UPDATE users SET username = ?, display_name = ?, password_hash = ? WHERE id = ?",
                     (username, display_name, hash_password(new_password), user["id"]),
                 )
+                conn.execute("DELETE FROM sessions WHERE user_id = ?", (user["id"],))
+                audit_event(request, "account.password.change", "success", actor_user_id=user["id"], target=str(user["id"]), conn=conn)
             else:
                 conn.execute(
                     "UPDATE users SET username = ?, display_name = ? WHERE id = ?",
                     (username, display_name, user["id"]),
                 )
+                audit_event(request, "account.profile.change", "success", actor_user_id=user["id"], target=str(user["id"]), conn=conn)
             updated = conn.execute("SELECT * FROM users WHERE id = ?", (user["id"],)).fetchone()
     except sqlite3.IntegrityError:
         raise HTTPException(status_code=409, detail="Username already exists") from None
 
-    return {"user": user_public(updated)}
+    return {"user": user_public(updated), "reauthenticate": bool(new_password)}
 
 
 @app.get("/api/downloads")
@@ -1621,11 +1756,21 @@ def list_users(_: dict[str, Any] = Depends(require_admin)) -> dict[str, Any]:
         return {"users": [user_public(row) for row in rows]}
 
 
+@app.get("/api/admin/audit")
+def list_audit_events(_: dict[str, Any] = Depends(require_admin)) -> dict[str, Any]:
+    with connect() as conn:
+        rows = conn.execute(
+            "SELECT id, actor_user_id, action, target, result, request_id, created_at FROM audit_events ORDER BY id DESC LIMIT 200"
+        ).fetchall()
+    return {"events": [dict(row) for row in rows]}
+
+
 @app.post("/api/admin/users")
 def create_user(
     payload: UserCreatePayload,
+    request: Request,
     _csrf: None = Depends(require_csrf),
-    _: dict[str, Any] = Depends(require_admin),
+    admin: dict[str, Any] = Depends(require_recent_admin),
 ) -> dict[str, Any]:
     username = validate_username_value(payload.username)
     validate_password_strength(payload.password, username)
@@ -1635,6 +1780,7 @@ def create_user(
                 "INSERT INTO users (username, display_name, password_hash, is_admin, created_at) VALUES (?, ?, ?, ?, ?)",
                 (username, username, hash_password(payload.password), int(payload.is_admin), utc_now()),
             )
+            audit_event(request, "admin.user.create", "success", actor_user_id=admin["id"], target=str(cursor.lastrowid), conn=conn)
             row = conn.execute("SELECT * FROM users WHERE id = ?", (cursor.lastrowid,)).fetchone()
             return {"user": user_public(row)}
     except sqlite3.IntegrityError:
@@ -1645,8 +1791,9 @@ def create_user(
 def reset_password(
     user_id: int,
     payload: PasswordPayload,
+    request: Request,
     _csrf: None = Depends(require_csrf),
-    _: dict[str, Any] = Depends(require_admin),
+    admin: dict[str, Any] = Depends(require_recent_admin),
 ) -> dict[str, str]:
     with connect() as conn:
         target = conn.execute("SELECT username FROM users WHERE id = ?", (user_id,)).fetchone()
@@ -1660,14 +1807,17 @@ def reset_password(
         )
         if result.rowcount == 0:
             raise HTTPException(status_code=404, detail="User not found")
+        conn.execute("DELETE FROM sessions WHERE user_id = ?", (user_id,))
+        audit_event(request, "admin.password.reset", "success", actor_user_id=admin["id"], target=str(user_id), conn=conn)
     return {"status": "updated"}
 
 
 @app.delete("/api/admin/users/{user_id}")
 def delete_user(
     user_id: int,
+    request: Request,
     _csrf: None = Depends(require_csrf),
-    admin: dict[str, Any] = Depends(require_admin),
+    admin: dict[str, Any] = Depends(require_recent_admin),
 ) -> dict[str, str]:
     if user_id == admin["id"]:
         raise HTTPException(status_code=400, detail="You cannot delete your own account")
@@ -1678,6 +1828,7 @@ def delete_user(
             raise HTTPException(status_code=404, detail="User not found")
         if target["is_admin"] and admins <= 1:
             raise HTTPException(status_code=400, detail="At least one admin must remain")
+        audit_event(request, "admin.user.delete", "success", actor_user_id=admin["id"], target=str(user_id), conn=conn)
         conn.execute("DELETE FROM users WHERE id = ?", (user_id,))
     return {"status": "deleted"}
 
@@ -1710,15 +1861,10 @@ def normalized_origin(value: str | None) -> str | None:
 
 
 def request_origin(request: Request) -> str:
-    scheme = (
-        forwarded_header_value(request.headers.get("x-forwarded-proto"))
-        or request.url.scheme
-    ).lower()
-    host = (
-        forwarded_header_value(request.headers.get("x-forwarded-host"))
-        or request.headers.get("host")
-        or request.url.netloc
-    )
+    forwarded_scheme = forwarded_header_value(request.headers.get("x-forwarded-proto")) if TRUST_PROXY else None
+    forwarded_host = forwarded_header_value(request.headers.get("x-forwarded-host")) if TRUST_PROXY else None
+    scheme = (forwarded_scheme or request.url.scheme).lower()
+    host = forwarded_host or request.headers.get("host") or request.url.netloc
     return f"{scheme}://{host}".rstrip("/")
 
 
@@ -1734,6 +1880,7 @@ def same_origin(request: Request, value: str | None) -> bool:
 
 @app.middleware("http")
 async def security_headers(request: Request, call_next: Any) -> Response:
+    request.state.request_id = request.headers.get("x-request-id", "")[:128] or secrets.token_hex(16)
     if request.method not in {"GET", "HEAD", "OPTIONS"} and request.url.path.startswith("/api/"):
         origin = request.headers.get("origin")
         referer = request.headers.get("referer")
@@ -1747,6 +1894,7 @@ async def security_headers(request: Request, call_next: Any) -> Response:
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["Referrer-Policy"] = "no-referrer"
     response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=(), payment=()"
+    response.headers["X-Request-ID"] = request.state.request_id
     response.headers["Content-Security-Policy"] = (
         "default-src 'self'; "
         "script-src 'self'; "
