@@ -1,7 +1,7 @@
 ARG ATOMICPARSLEY_REPO=https://github.com/wez/atomicparsley.git
 ARG ATOMICPARSLEY_REF=1ed9031faaea5c75f88b2135d04b29ef24766788
 
-FROM alpine:3.23@sha256:fd791d74b68913cbb027c6546007b3f0d3bc45125f797758156952bc2d6daf40 AS atomicparsley-build
+FROM alpine:3.24@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b AS atomicparsley-build
 ARG ATOMICPARSLEY_REPO
 ARG ATOMICPARSLEY_REF
 RUN apk add --no-cache cmake g++ git linux-headers make zlib-dev \
@@ -15,7 +15,7 @@ RUN apk add --no-cache cmake g++ git linux-headers make zlib-dev \
 
 FROM denoland/deno:alpine-2.8.3@sha256:9eb3b9b8bd4f821de57239792f76f6a3bef29a7bfbd486b801cbf34fc2c32797 AS deno-runtime
 
-FROM alpine:3.23@sha256:fd791d74b68913cbb027c6546007b3f0d3bc45125f797758156952bc2d6daf40 AS runtime-base
+FROM alpine:3.24@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b AS runtime-base
 
 ARG VERSION=0.2.1
 ARG GIT_SHA=dev
