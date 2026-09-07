@@ -373,7 +373,7 @@ svg {
   appearance: none;
   border: 0;
   border-radius: var(--radius-pill);
-  background: var(--color-primary);
+  background: transparent;
   color: var(--color-primary);
 }
 

@@ -14,6 +14,7 @@
       "priority": "critical",
       "acceptance": [
         "Provide a self-hosted interface for controlled media downloads through yt-dlp.",
+        "Show determinate download progress from yt-dlp while a queue item is running.",
         "Existing documented and reachable behavior remains available unless an approved migration decision says otherwise."
       ],
       "security_critical": false
@@ -25,6 +26,17 @@
       "acceptance": [
         "Account authentication uses generic errors, rate limits, and a supported password hash.",
         "Sessions are server-side revocable, rotated, time-bounded, cookie-protected, and CSRF-protected."
+      ],
+      "security_critical": true
+    },
+    {
+      "id": "SHARE-001",
+      "title": "Owner-controlled public media links",
+      "priority": "critical",
+      "acceptance": [
+        "An authenticated file owner can explicitly create and revoke an unguessable public link whose path includes the current encoded file name.",
+        "The public link serves the media inline with byte-range support and no application interface, while invalid or revoked links disclose no file metadata.",
+        "An authenticated file owner can rename a completed file without changing its extension or escaping the download directory, and existing active links redirect to the canonical new name."
       ],
       "security_critical": true
     },

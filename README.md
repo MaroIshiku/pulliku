@@ -35,7 +35,9 @@ The app is intentionally meant to feel like part of a shared suite, not like a s
 - audio options for format and bitrate
 - optional playlist downloads
 - live status with progress, speed, and ETA
-- file size and download button directly on completed queue items
+- file size, download, rename, and public-open actions directly on completed queue items
+- revocable public media links with opaque identifiers and the readable file name in the URL
+- inline browser playback with native controls and byte-range seeking, without an intermediate page
 - completed files are deleted after the retention period unless marked as permanent
 - About/Admin sheet with version, build, public IP, and yt-dlp diagnostics
 
@@ -153,6 +155,15 @@ On SELinux-enforcing rootless hosts, add the appropriate bind-mount relabel opti
 - Public registration is closed after the first admin account is created.
 - Setup secrets, `.env`, databases, downloads, and logs do not belong in the repository.
 - For HTTPS deployments, set `APP_COOKIE_SECURE=true` so Pulliku uses `__Host-` session cookies and HSTS.
+- Public media links are bearer capabilities: anyone who receives one can open the file without signing in until its owner disables the link or the file is deleted.
+- Only the authenticated file owner can create, revoke, or rename a public file. Link tokens are derived from a key in `/data/share-links.key`; the database stores only their hashes.
+- Keep `/data` and reverse-proxy access logs private. Configure `ISHIKU_APP_URL` to the externally reachable HTTPS origin so copied links use the correct public host.
+
+### Public links and file names
+
+On a completed item, **Open public file** creates or reuses its public link and opens the media response directly. **Copy public link** copies the same link for sharing. **Disable public link** immediately invalidates it.
+
+Renaming preserves the original extension. Existing active links redirect to the new canonical file name, so already shared URLs continue to work while the public link remains enabled. Deleting a file also invalidates its public link.
 
 ## Updates and Backup
 

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 import hashlib
 import hmac
 import ipaddress
@@ -12,6 +13,7 @@ import sqlite3
 import subprocess
 import threading
 import time
+import unicodedata
 import zipfile
 import importlib.metadata
 import importlib.util
@@ -19,7 +21,7 @@ from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Iterator, Literal
-from urllib.parse import urlparse
+from urllib.parse import quote, urlparse
 from urllib.request import urlopen
 
 from argon2 import PasswordHasher
@@ -37,6 +39,7 @@ APP_NAME = "Pulliku"
 DATA_DIR = Path(os.getenv("ISHIKU_DATA_DIR") or os.getenv("APP_DATA_DIR", "./data")).resolve()
 DOWNLOAD_DIR = Path(os.getenv("DOWNLOAD_DIR", "./downloads")).resolve()
 DB_PATH = DATA_DIR / "app.db"
+SHARE_KEY_PATH = DATA_DIR / "share-links.key"
 SESSION_DAYS = int(os.getenv("SESSION_DAYS", "14"))
 SESSION_IDLE_MINUTES = max(5, int(os.getenv("SESSION_IDLE_MINUTES", "30")))
 RECENT_AUTH_MINUTES = max(1, int(os.getenv("APP_RECENT_AUTH_MINUTES", "15")))
@@ -56,7 +59,7 @@ LOGIN_MAX_FAILURES = int(os.getenv("APP_LOGIN_MAX_FAILURES", "5"))
 SETUP_WINDOW_SECONDS = int(os.getenv("APP_SETUP_RATE_WINDOW_SECONDS", "900"))
 SETUP_MAX_FAILURES = int(os.getenv("APP_SETUP_MAX_FAILURES", "8"))
 MIN_PASSWORD_LENGTH = max(12, int(os.getenv("APP_MIN_PASSWORD_LENGTH", "12")))
-APP_VERSION = os.getenv("APP_VERSION", "0.2.0")
+APP_VERSION = os.getenv("APP_VERSION", "0.2.1")
 APP_BUILD_SHA = os.getenv("APP_BUILD_SHA", "dev")
 APP_BUILD_DATE = os.getenv("APP_BUILD_DATE", "unknown")
 LOG_LEVEL = os.getenv("ISHIKU_LOG_LEVEL", "info")
@@ -135,6 +138,10 @@ class ProfileUpdatePayload(BaseModel):
 
 class PermanentPayload(BaseModel):
     is_permanent: bool
+
+
+class RenamePayload(BaseModel):
+    filename: str = Field(min_length=1, max_length=200)
 
 
 class SetupRegisterPayload(BaseModel):
@@ -243,6 +250,11 @@ def init_db() -> None:
         ensure_column(conn, "downloads", "file_size", "INTEGER")
         ensure_column(conn, "downloads", "is_permanent", "INTEGER NOT NULL DEFAULT 0")
         ensure_column(conn, "downloads", "settings_json", "TEXT NOT NULL DEFAULT '{}'")
+        ensure_column(conn, "downloads", "public_share_nonce", "TEXT")
+        ensure_column(conn, "downloads", "public_token_hash", "TEXT")
+        conn.execute(
+            "CREATE UNIQUE INDEX IF NOT EXISTS downloads_public_token_hash ON downloads(public_token_hash) WHERE public_token_hash IS NOT NULL"
+        )
         admin_count = conn.execute("SELECT COUNT(*) FROM users WHERE is_admin = 1").fetchone()[0]
         setup_completed = conn.execute("SELECT value FROM setup_state WHERE key = 'setup_completed'").fetchone()
         if admin_count and not setup_completed:
@@ -332,6 +344,50 @@ DUMMY_PASSWORD_HASH = hash_password(secrets.token_urlsafe(32))
 
 def hash_token(token: str) -> str:
     return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
+def share_signing_key() -> bytes:
+    try:
+        key = SHARE_KEY_PATH.read_bytes()
+    except FileNotFoundError:
+        key = secrets.token_bytes(32)
+        try:
+            descriptor = os.open(SHARE_KEY_PATH, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        except FileExistsError:
+            key = SHARE_KEY_PATH.read_bytes()
+        else:
+            try:
+                os.write(descriptor, key)
+                os.fsync(descriptor)
+            finally:
+                os.close(descriptor)
+    if len(key) != 32:
+        raise RuntimeError("Public share signing key is invalid")
+    SHARE_KEY_PATH.chmod(0o600)
+    return key
+
+
+def public_share_token(download_id: int, nonce: str) -> str:
+    digest = hmac.new(
+        share_signing_key(),
+        f"pulliku-public-share:{download_id}:{nonce}".encode("utf-8"),
+        hashlib.sha256,
+    ).digest()[:24]
+    return base64.urlsafe_b64encode(digest).decode("ascii").rstrip("=")
+
+
+def public_file_path(token: str, filename: str) -> str:
+    return f"/{token}/{quote(filename, safe='')}"
+
+
+def public_file_url(request: Request, token: str, filename: str) -> str:
+    configured_origin = normalized_origin(APP_PUBLIC_URL)
+    origin = (
+        configured_origin
+        if configured_origin and urlparse(configured_origin).scheme in {"http", "https"}
+        else request_origin(request)
+    )
+    return f"{origin}{public_file_path(token, filename)}"
 
 
 def cookie_kwargs(http_only: bool) -> dict[str, Any]:
@@ -883,6 +939,23 @@ def delete_download_file(relative_path: str | None) -> bool:
     return True
 
 
+def normalized_rename(filename: str, current_name: str) -> str:
+    value = unicodedata.normalize("NFC", filename.strip())
+    if not value or value in {".", ".."} or value != Path(value).name:
+        raise HTTPException(status_code=400, detail="Enter a file name without folders")
+    if any(character in value for character in ("/", "\\", "\x00")) or any(ord(character) < 32 for character in value):
+        raise HTTPException(status_code=400, detail="File name contains unsupported characters")
+    current_suffix = Path(current_name).suffix
+    requested_suffix = Path(value).suffix
+    if not requested_suffix and current_suffix:
+        value = f"{value}{current_suffix}"
+    elif requested_suffix.lower() != current_suffix.lower():
+        raise HTTPException(status_code=400, detail=f"Keep the {current_suffix or 'original'} file extension")
+    if len(value.encode("utf-8")) > 240:
+        raise HTTPException(status_code=400, detail="File name is too long")
+    return value
+
+
 def stored_file_size(row: sqlite3.Row) -> int | None:
     try:
         if row["file_size"] is not None:
@@ -920,6 +993,7 @@ def row_to_download(row: sqlite3.Row) -> dict[str, Any]:
         "file_size": stored_file_size(row),
         "file_url": file_url,
         "open_file_url": open_file_url,
+        "public_share_enabled": bool(row["public_token_hash"]),
         "is_permanent": bool(row["is_permanent"]),
         "retention_days": FILE_RETENTION_DAYS,
         "retention_expires_at": retention_expires_at,
@@ -1737,6 +1811,19 @@ def completed_download_target(download_id: int, user_id: int) -> Path:
     return target
 
 
+def completed_download_row(download_id: int, user_id: int, conn: sqlite3.Connection) -> sqlite3.Row:
+    row = conn.execute(
+        """
+        SELECT * FROM downloads
+        WHERE id = ? AND created_by = ? AND status = 'completed' AND filename IS NOT NULL
+        """,
+        (download_id, user_id),
+    ).fetchone()
+    if not row or not safe_download_path(row["filename"]):
+        raise HTTPException(status_code=404, detail="File not found")
+    return row
+
+
 @app.get("/api/downloads/{download_id}/file")
 def download_file(download_id: int, user: dict[str, Any] = Depends(get_current_user)) -> FileResponse:
     target = completed_download_target(download_id, user["id"])
@@ -1747,6 +1834,86 @@ def download_file(download_id: int, user: dict[str, Any] = Depends(get_current_u
 def open_download_file(download_id: int, user: dict[str, Any] = Depends(get_current_user)) -> FileResponse:
     target = completed_download_target(download_id, user["id"])
     return FileResponse(target, filename=target.name, content_disposition_type="inline")
+
+
+@app.post("/api/downloads/{download_id}/share")
+def enable_public_share(
+    download_id: int,
+    request: Request,
+    _csrf: None = Depends(require_csrf),
+    user: dict[str, Any] = Depends(get_current_user),
+) -> dict[str, Any]:
+    with connect() as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        row = completed_download_row(download_id, user["id"], conn)
+        nonce = row["public_share_nonce"]
+        token = public_share_token(download_id, nonce) if nonce else ""
+        if not nonce or not hmac.compare_digest(hash_token(token), row["public_token_hash"] or ""):
+            nonce = secrets.token_urlsafe(24)
+            token = public_share_token(download_id, nonce)
+            conn.execute(
+                "UPDATE downloads SET public_share_nonce = ?, public_token_hash = ?, updated_at = ? WHERE id = ?",
+                (nonce, hash_token(token), utc_now(), download_id),
+            )
+        audit_event(request, "download.share.enable", "success", actor_user_id=user["id"], target=str(download_id), conn=conn)
+        filename = Path(row["filename"]).name
+    return {"public_url": public_file_url(request, token, filename), "filename": filename}
+
+
+@app.delete("/api/downloads/{download_id}/share")
+def revoke_public_share(
+    download_id: int,
+    request: Request,
+    _csrf: None = Depends(require_csrf),
+    user: dict[str, Any] = Depends(get_current_user),
+) -> dict[str, str]:
+    with connect() as conn:
+        row = conn.execute(
+            "SELECT id FROM downloads WHERE id = ? AND created_by = ?",
+            (download_id, user["id"]),
+        ).fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Download not found")
+        conn.execute(
+            "UPDATE downloads SET public_share_nonce = NULL, public_token_hash = NULL, updated_at = ? WHERE id = ?",
+            (utc_now(), download_id),
+        )
+        audit_event(request, "download.share.revoke", "success", actor_user_id=user["id"], target=str(download_id), conn=conn)
+    return {"status": "revoked"}
+
+
+@app.patch("/api/downloads/{download_id}/filename")
+def rename_download_file(
+    download_id: int,
+    payload: RenamePayload,
+    request: Request,
+    _csrf: None = Depends(require_csrf),
+    user: dict[str, Any] = Depends(get_current_user),
+) -> dict[str, Any]:
+    with connect() as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        row = completed_download_row(download_id, user["id"], conn)
+        source = safe_download_path(row["filename"])
+        assert source is not None
+        new_name = normalized_rename(payload.filename, source.name)
+        destination = source.with_name(new_name)
+        if destination != source and destination.exists():
+            raise HTTPException(status_code=409, detail="A file with this name already exists")
+        relative_filename = destination.relative_to(DOWNLOAD_DIR.resolve()).as_posix()
+        if destination != source:
+            try:
+                source.rename(destination)
+                conn.execute(
+                    "UPDATE downloads SET filename = ?, title = ?, updated_at = ? WHERE id = ?",
+                    (relative_filename, destination.stem, utc_now(), download_id),
+                )
+            except BaseException:
+                if destination.exists() and not source.exists():
+                    destination.rename(source)
+                raise
+        updated = conn.execute("SELECT * FROM downloads WHERE id = ?", (download_id,)).fetchone()
+        audit_event(request, "download.file.rename", "success", actor_user_id=user["id"], target=str(download_id), conn=conn)
+    return {"download": row_to_download(updated)}
 
 
 @app.get("/api/admin/users")
@@ -1909,4 +2076,27 @@ async def security_headers(request: Request, call_next: Any) -> Response:
     )
     if COOKIE_SECURE:
         response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    return response
+
+
+# Keep this catch-all route last so it can never shadow authenticated API routes.
+@app.get("/{public_token}/{filename:path}", include_in_schema=False)
+def public_download_file(public_token: str, filename: str) -> Response:
+    if not re.fullmatch(r"[A-Za-z0-9_-]{32}", public_token):
+        raise HTTPException(status_code=404, detail="File not found")
+    with connect() as conn:
+        row = conn.execute(
+            """
+            SELECT filename FROM downloads
+            WHERE public_token_hash = ? AND status = 'completed' AND filename IS NOT NULL
+            """,
+            (hash_token(public_token),),
+        ).fetchone()
+    target = safe_download_path(row["filename"] if row else None)
+    if not target:
+        raise HTTPException(status_code=404, detail="File not found")
+    if filename != target.name:
+        return RedirectResponse(public_file_path(public_token, target.name), status_code=307)
+    response = FileResponse(target, filename=target.name, content_disposition_type="inline")
+    response.headers["Cache-Control"] = "no-store"
     return response

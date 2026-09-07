@@ -152,6 +152,23 @@ function formatExpiryDate(value) {
   }).format(date);
 }
 
+async function copyText(value) {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(value);
+    return;
+  }
+  const input = document.createElement("textarea");
+  input.value = value;
+  input.setAttribute("readonly", "");
+  input.style.position = "fixed";
+  input.style.opacity = "0";
+  document.body.append(input);
+  input.select();
+  const copied = document.execCommand("copy");
+  input.remove();
+  if (!copied) throw new Error("Could not copy the public link");
+}
+
 async function api(path, options = {}) {
   const method = String(options.method || "GET").toUpperCase();
   const headers = {
@@ -368,7 +385,7 @@ function renderAboutInfo() {
   const rows = [
     ["App Name", APP_NAME],
     ["Interface", APP_SUBTITLE],
-    ["Pulliku version", payload.version || "0.2.0"],
+    ["Pulliku version", payload.version || "0.2.1"],
     ["GitHub SHA", shortSha],
     ["Build date", payload.build_date || "unknown"],
     ["Data directory", payload.data_dir || "unknown"],
@@ -452,8 +469,9 @@ function renderDownloads() {
       const retentionText = retentionLabel(item);
       const hasNoExpiration = canTogglePermanent && retentionText === "No expiration";
       const progress = Math.max(0, Math.min(100, item.progress || 0));
+      const progressText = item.status === "running" ? `${progress.toFixed(1)}%` : null;
       const size = formatBytes(item.file_size);
-      const detail = [settingsLabel(item.settings), size, item.speed, item.eta ? `ETA ${item.eta}` : null, formatDate(item.created_at)]
+      const detail = [settingsLabel(item.settings), size, progressText, item.speed, item.eta ? `ETA ${item.eta}` : null, formatDate(item.created_at)]
         .filter(Boolean)
         .join(" - ");
       return `
@@ -467,7 +485,7 @@ function renderDownloads() {
               <span class="status-chip ${escapeHtml(item.status)}">${escapeHtml(item.status)}</span>
             </div>
           </div>
-          <div class="progress-track"><progress class="progress-bar" value="${progress}" max="100" aria-label="Download progress"></progress></div>
+          <div class="progress-track"><progress class="progress-bar" value="${progress}" max="100" aria-label="Download progress for ${escapeHtml(title)}">${progress.toFixed(1)}%</progress></div>
           ${item.error ? `<div class="meta">${escapeHtml(item.error)}</div>` : ""}
           <div class="card-actions">
             <div class="card-actions-left">
@@ -483,14 +501,33 @@ function renderDownloads() {
                   : ""
               }
               ${
-                item.open_file_url
-                  ? `<a class="icon-button" href="${escapeHtml(item.open_file_url)}" target="_blank" rel="noopener" title="Open file" aria-label="Open file">
+                item.file_url
+                  ? `<button class="icon-button" type="button" data-action="open" data-id="${item.id}" title="Open public file" aria-label="Open public file">
                       <svg viewBox="0 0 24 24" aria-hidden="true">
                         <path d="M15 3h6v6"></path>
                         <path d="M10 14 21 3"></path>
                         <path d="M21 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5"></path>
                       </svg>
-                    </a>`
+                    </button>`
+                  : ""
+              }
+              ${
+                item.file_url
+                  ? `<button class="icon-button" type="button" data-action="share" data-id="${item.id}" title="Copy public link" aria-label="Copy public link">
+                      <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <circle cx="18" cy="5" r="3"></circle>
+                        <circle cx="6" cy="12" r="3"></circle>
+                        <circle cx="18" cy="19" r="3"></circle>
+                        <path d="m8.6 10.5 6.8-4"></path>
+                        <path d="m8.6 13.5 6.8 4"></path>
+                      </svg>
+                    </button>
+                    <button class="icon-button" type="button" data-action="rename" data-id="${item.id}" data-filename="${escapeHtml(item.filename || "")}" title="Rename file" aria-label="Rename file">
+                      <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M12 20h9"></path>
+                        <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4Z"></path>
+                      </svg>
+                    </button>`
                   : ""
               }
               ${canCancel ? `<button class="psu-button psu-button--tonal" type="button" data-action="cancel" data-id="${item.id}">Stop</button>` : ""}
@@ -519,6 +556,7 @@ function renderDownloads() {
                   <path d="M14 11v5"></path>
                 </svg>
               </button>` : ""}
+              ${item.public_share_enabled ? `<button class="psu-button psu-button--text" type="button" data-action="revoke-share" data-id="${item.id}">Disable public link</button>` : ""}
             </div>
           </div>
         </article>
@@ -689,6 +727,10 @@ $("#downloadList").addEventListener("click", async (event) => {
   const button = event.target.closest("button[data-action]");
   if (!button) return;
   const id = button.dataset.id;
+  let openedWindow = null;
+  if (button.dataset.action === "open") {
+    openedWindow = window.open("about:blank", "_blank");
+  }
   button.disabled = true;
   try {
     if (button.dataset.action === "cancel") {
@@ -700,12 +742,60 @@ $("#downloadList").addEventListener("click", async (event) => {
       });
     } else if (button.dataset.action === "delete") {
       await api(`/api/downloads/${id}`, { method: "DELETE" });
+    } else if (button.dataset.action === "open" || button.dataset.action === "share") {
+      const payload = await api(`/api/downloads/${id}/share`, { method: "POST" });
+      if (button.dataset.action === "open") {
+        if (!openedWindow) throw new Error("Allow pop-ups to open the public file");
+        openedWindow.opener = null;
+        openedWindow.location.replace(payload.public_url);
+      } else {
+        await copyText(payload.public_url);
+        showToast("Public link copied");
+      }
+    } else if (button.dataset.action === "revoke-share") {
+      await api(`/api/downloads/${id}/share`, { method: "DELETE" });
+      showToast("Public link disabled");
+    } else if (button.dataset.action === "rename") {
+      const form = $("#renameFileForm");
+      form.reset();
+      form.elements.download_id.value = id;
+      form.elements.filename.value = button.dataset.filename.split("/").pop() || "";
+      $("#renameFileError").textContent = "";
+      $("#renameFileDialog").showModal();
+      form.elements.filename.focus();
+      form.elements.filename.select();
+      return;
     }
     await loadDownloads();
   } catch (error) {
+    if (openedWindow && !openedWindow.closed) openedWindow.close();
     showToast(error.message);
   } finally {
     button.disabled = false;
+  }
+});
+
+$("#renameFileCancel").addEventListener("click", () => $("#renameFileDialog").close());
+
+$("#renameFileForm").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const submitButton = form.querySelector("button[type='submit']");
+  const data = new FormData(form);
+  $("#renameFileError").textContent = "";
+  submitButton.disabled = true;
+  try {
+    await api(`/api/downloads/${data.get("download_id")}/filename`, {
+      method: "PATCH",
+      body: JSON.stringify({ filename: data.get("filename") }),
+    });
+    $("#renameFileDialog").close();
+    showToast("File renamed");
+    await loadDownloads();
+  } catch (error) {
+    $("#renameFileError").textContent = error.message;
+  } finally {
+    submitButton.disabled = false;
   }
 });
 

@@ -6,6 +6,7 @@ import tempfile
 import unittest
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from urllib.parse import unquote, urlparse
 from unittest.mock import patch
 
 
@@ -166,6 +167,142 @@ class SecurityIntegrationTests(unittest.TestCase):
         )
         self.assertEqual(reset.status_code, 200, reset.text)
         self.assertEqual(user_client.get("/api/me").status_code, 401)
+
+    def test_08_public_links_and_safe_rename_are_owner_controlled(self) -> None:
+        self.login()
+        media = b"pulliku-public-media-test"
+        original_name = "Frischer_Fisch.mp4"
+        original_path = main.DOWNLOAD_DIR / original_name
+        original_path.parent.mkdir(parents=True, exist_ok=True)
+        original_path.write_bytes(media)
+        now = main.utc_now()
+        with main.connect() as conn:
+            owner_id = conn.execute("SELECT id FROM users WHERE username = ?", (ADMIN_USERNAME,)).fetchone()[0]
+            cursor = conn.execute(
+                """
+                INSERT INTO downloads (
+                  url, mode, playlist, title, status, progress, filename, file_size,
+                  settings_json, created_by, created_at, updated_at
+                ) VALUES (?, 'video', 0, ?, 'completed', 100, ?, ?, '{}', ?, ?, ?)
+                """,
+                ("https://example.test/media", "Frischer Fisch", original_name, len(media), owner_id, now, now),
+            )
+            download_id = cursor.lastrowid
+
+        missing_csrf = self.client.post(f"/api/downloads/{download_id}/share")
+        self.assertEqual(missing_csrf.status_code, 403)
+
+        other_client = TestClient(main.app)
+        self.login("download-user", "Strong-User-Credential-2027!", other_client)
+        forbidden_share = other_client.post(
+            f"/api/downloads/{download_id}/share",
+            headers={"X-CSRF-Token": self.csrf(other_client)},
+        )
+        self.assertEqual(forbidden_share.status_code, 404)
+        forbidden_rename = other_client.patch(
+            f"/api/downloads/{download_id}/filename",
+            headers={"X-CSRF-Token": self.csrf(other_client)},
+            json={"filename": "stolen.mp4"},
+        )
+        self.assertEqual(forbidden_rename.status_code, 404)
+        other_client.close()
+
+        shared = self.client.post(
+            f"/api/downloads/{download_id}/share",
+            headers={"X-CSRF-Token": self.csrf()},
+        )
+        self.assertEqual(shared.status_code, 200, shared.text)
+        public_url = shared.json()["public_url"]
+        public_path = urlparse(public_url).path
+        path_parts = public_path.split("/")
+        self.assertRegex(path_parts[1], r"^[A-Za-z0-9_-]{32}$")
+        self.assertEqual(unquote(path_parts[2]), original_name)
+
+        anonymous = TestClient(main.app)
+        opened = anonymous.get(public_path)
+        self.assertEqual(opened.status_code, 200, opened.text)
+        self.assertEqual(opened.content, media)
+        self.assertIn("inline", opened.headers["content-disposition"])
+        self.assertEqual(opened.headers["cache-control"], "no-store")
+        ranged = anonymous.get(public_path, headers={"Range": "bytes=0-6"})
+        self.assertEqual(ranged.status_code, 206, ranged.text)
+        self.assertEqual(ranged.content, media[:7])
+        self.assertEqual(anonymous.get(f"/{'A' * 32}/{original_name}").status_code, 404)
+
+        traversal = self.client.patch(
+            f"/api/downloads/{download_id}/filename",
+            headers={"X-CSRF-Token": self.csrf()},
+            json={"filename": "../outside.mp4"},
+        )
+        self.assertEqual(traversal.status_code, 400)
+        wrong_extension = self.client.patch(
+            f"/api/downloads/{download_id}/filename",
+            headers={"X-CSRF-Token": self.csrf()},
+            json={"filename": "Frischer Fisch.mov"},
+        )
+        self.assertEqual(wrong_extension.status_code, 400)
+
+        collision_path = main.DOWNLOAD_DIR / "Already here.mp4"
+        collision_path.write_bytes(b"occupied")
+        collision = self.client.patch(
+            f"/api/downloads/{download_id}/filename",
+            headers={"X-CSRF-Token": self.csrf()},
+            json={"filename": collision_path.name},
+        )
+        self.assertEqual(collision.status_code, 409)
+        collision_path.unlink()
+
+        renamed = self.client.patch(
+            f"/api/downloads/{download_id}/filename",
+            headers={"X-CSRF-Token": self.csrf()},
+            json={"filename": "Wie man Pad Thai kocht"},
+        )
+        self.assertEqual(renamed.status_code, 200, renamed.text)
+        new_name = "Wie man Pad Thai kocht.mp4"
+        self.assertEqual(renamed.json()["download"]["filename"], new_name)
+        self.assertFalse(original_path.exists())
+        self.assertTrue((main.DOWNLOAD_DIR / new_name).is_file())
+
+        stale = anonymous.get(public_path, follow_redirects=False)
+        self.assertEqual(stale.status_code, 307)
+        self.assertEqual(unquote(stale.headers["location"].split("/")[-1]), new_name)
+        canonical = anonymous.get(stale.headers["location"])
+        self.assertEqual(canonical.status_code, 200)
+        self.assertEqual(canonical.content, media)
+
+        with main.connect() as conn:
+            row = conn.execute(
+                "SELECT public_share_nonce, public_token_hash FROM downloads WHERE id = ?",
+                (download_id,),
+            ).fetchone()
+            audit_rows = conn.execute(
+                "SELECT action, target FROM audit_events WHERE target = ?",
+                (str(download_id),),
+            ).fetchall()
+        token = path_parts[1]
+        self.assertNotEqual(row["public_share_nonce"], token)
+        self.assertEqual(row["public_token_hash"], main.hash_token(token))
+        self.assertTrue(all(token not in (entry["target"] or "") for entry in audit_rows))
+        self.assertEqual(main.SHARE_KEY_PATH.stat().st_mode & 0o777, 0o600)
+
+        revoked = self.client.delete(
+            f"/api/downloads/{download_id}/share",
+            headers={"X-CSRF-Token": self.csrf()},
+        )
+        self.assertEqual(revoked.status_code, 200, revoked.text)
+        self.assertEqual(anonymous.get(stale.headers["location"]).status_code, 404)
+        anonymous.close()
+
+    def test_09_progress_parser_and_native_progress_styling(self) -> None:
+        progress, speed, eta = main.parse_progress("[download]  42.7% of 10.00MiB at 3.25MiB/s ETA 00:03")
+        self.assertEqual(progress, 42.7)
+        self.assertEqual(speed, "3.25MiB/s")
+        self.assertEqual(eta, "00:03")
+        script = (Path(main.__file__).parent / "static" / "app.js").read_text(encoding="utf-8")
+        styles = (Path(main.__file__).parent / "static" / "style.css").read_text(encoding="utf-8")
+        self.assertIn('<progress class="progress-bar" value="${progress}"', script)
+        progress_rule = styles.split(".progress-bar {", 1)[1].split("}", 1)[0]
+        self.assertIn("background: transparent", progress_rule)
 
 
 if __name__ == "__main__":

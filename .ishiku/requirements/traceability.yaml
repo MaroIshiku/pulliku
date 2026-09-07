@@ -42,6 +42,26 @@
       "status": "verified"
     },
     {
+      "id": "SHARE-001",
+      "implementation": [
+        "app/main.py",
+        "app/static/app.js",
+        "app/static/index.html"
+      ],
+      "tests": {
+        "unit": [],
+        "integration": [
+          "tests/test_security.py"
+        ],
+        "e2e": [],
+        "security": [
+          "tests/test_security.py",
+          ".ishiku/kit/scripts/check-security"
+        ]
+      },
+      "status": "verified"
+    },
+    {
       "id": "UI-001",
       "implementation": [
         "app/static/index.html",

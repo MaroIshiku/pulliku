@@ -1,0 +1,18 @@
+{
+  "id": "DEC-004",
+  "date": "2026-09-07",
+  "decision": "Allow a file owner to explicitly enable a revocable anonymous media URL for each completed download.",
+  "rationale": "The product owner requested directly shareable media URLs with an opaque identifier and readable file name, and explicitly accepted public access by possession of the link.",
+  "controls": [
+    "Only the authenticated owner can enable, revoke, or rename a shared file, and every mutation requires CSRF validation.",
+    "The 192-bit URL token is HMAC-derived from a per-installation key and random per-download nonce; only a SHA-256 token hash is stored in SQLite.",
+    "Resolved file paths remain inside the configured download directory, extensions cannot change during rename, and invalid links return a generic 404.",
+    "Revocation or file deletion invalidates the link; old file-name paths redirect only while the underlying token remains active.",
+    "Media responses are inline, support HTTP byte ranges, and disable caching. Application access logging is disabled to avoid recording capability URLs."
+  ],
+  "consequences": [
+    "Anyone possessing an active URL can access that media without an account.",
+    "Operators must protect reverse-proxy logs and backups containing the persistent share-signing key.",
+    "Restoring `/data` without its matching `/downloads` content, or vice versa, may leave unusable link records until queue history is cleaned up."
+  ]
+}

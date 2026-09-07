@@ -411,8 +411,25 @@
       </form>
     </dialog>
 
+    <dialog id="renameFileDialog" class="psu-dialog" aria-labelledby="renameFileTitle">
+      <form id="renameFileForm" class="psu-form-stack" method="dialog">
+        <h2 id="renameFileTitle" class="psu-card-title">Rename file</h2>
+        <p class="psu-supporting-text">The file extension stays unchanged. Existing public links redirect to the new file name.</p>
+        <input name="download_id" type="hidden" />
+        <label class="psu-field">
+          <span class="psu-label">File name</span>
+          <input name="filename" class="psu-input" type="text" required maxlength="200" autocomplete="off" aria-describedby="renameFileError" />
+        </label>
+        <p id="renameFileError" class="psu-field-error" role="alert"></p>
+        <div class="dialog-actions">
+          <button id="renameFileCancel" class="psu-button psu-button--text" type="button">Cancel</button>
+          <button class="psu-button psu-button--filled" type="submit">Rename file</button>
+        </div>
+      </form>
+    </dialog>
+
     <div id="psu-toast-host" class="psu-toast-host" aria-live="polite" aria-atomic="true"></div>
 
-    <script src="/static/app.js?v=20260831a"></script>
+    <script src="/static/app.js?v=20260902a"></script>
   </body>
 </html>

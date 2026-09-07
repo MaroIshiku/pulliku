@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "requirement": "REL-001",
+  "tag": "v0.2.0",
+  "commit": "593d0b91e5b4b83c78bf3dcae96c87fabb16c5c7",
+  "workflow_run": "https://github.com/MaroIshiku/pulliku/actions/runs/33624808101",
+  "status": "failed",
+  "failure": "The publish job reached its 60-minute timeout while the ARM64 FFmpeg source build was still compiling libavcodec.",
+  "promotion": false,
+  "github_release_created": false,
+  "corrective_action": "Use Alpine's maintained architecture-specific FFmpeg package and retain runtime codec checks, multi-architecture build, digest scan, SBOM, and provenance gates in v0.2.1."
+}
