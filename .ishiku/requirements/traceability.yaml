@@ -116,12 +116,14 @@
         "integration": [
           ".ishiku/kit/scripts/compliance-test"
         ],
-        "e2e": [],
+        "e2e": [
+          ".ishiku/reports/rel-001-verification.json"
+        ],
         "security": [
           ".ishiku/kit/scripts/compliance-test"
         ]
       },
-      "status": "implemented"
+      "status": "verified"
     }
   ]
 }
