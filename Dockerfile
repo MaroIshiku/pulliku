@@ -13,7 +13,7 @@ RUN apk add --no-cache cmake g++ git linux-headers make zlib-dev \
     && cmake -S /src -B /build -DCMAKE_BUILD_TYPE=Release \
     && cmake --build /build --parallel
 
-FROM denoland/deno:alpine-2.8.3@sha256:9eb3b9b8bd4f821de57239792f76f6a3bef29a7bfbd486b801cbf34fc2c32797 AS deno-runtime
+FROM denoland/deno:alpine-2.9.6@sha256:aa665f8777136863b5b8a0445a5cdfccff8103b5f40c9a877de5276b04facb1e AS deno-runtime
 
 FROM alpine:3.23@sha256:fd791d74b68913cbb027c6546007b3f0d3bc45125f797758156952bc2d6daf40 AS runtime-base
 
