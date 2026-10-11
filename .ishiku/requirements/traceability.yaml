@@ -7,7 +7,9 @@
       "implementation": [
         "app/main.py",
         "app/static/app.js",
-        "app/static/index.html"
+        "app/static/index.html",
+        "requirements.txt",
+        "Dockerfile"
       ],
       "tests": {
         "unit": [],
@@ -89,7 +91,8 @@
         "Dockerfile",
         "docker-compose.yml",
         "docker-compose.zimaos-ui.yml",
-        "README.md"
+        "README.md",
+        "requirements-test.txt"
       ],
       "tests": {
         "unit": [],
