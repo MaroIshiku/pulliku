@@ -1,7 +1,7 @@
 ARG ATOMICPARSLEY_REPO=https://github.com/wez/atomicparsley.git
 ARG ATOMICPARSLEY_REF=1ed9031faaea5c75f88b2135d04b29ef24766788
 
-FROM alpine:3.23@sha256:fd791d74b68913cbb027c6546007b3f0d3bc45125f797758156952bc2d6daf40 AS atomicparsley-build
+FROM alpine:3.24.2@sha256:294b683cb724975bec92580e1e685676bd4b50bda910ddb8c51d4cabeaec77e6 AS atomicparsley-build
 ARG ATOMICPARSLEY_REPO
 ARG ATOMICPARSLEY_REF
 RUN apk add --no-cache cmake g++ git linux-headers make zlib-dev \
@@ -13,17 +13,17 @@ RUN apk add --no-cache cmake g++ git linux-headers make zlib-dev \
     && cmake -S /src -B /build -DCMAKE_BUILD_TYPE=Release \
     && cmake --build /build --parallel
 
-FROM denoland/deno:alpine-2.8.3@sha256:9eb3b9b8bd4f821de57239792f76f6a3bef29a7bfbd486b801cbf34fc2c32797 AS deno-runtime
+FROM denoland/deno:alpine-2.9.7@sha256:8ce780168429c4bf5962652e6cbea3fd45254ae902069e90585fb33f74c56968 AS deno-runtime
 
-FROM alpine:3.23@sha256:fd791d74b68913cbb027c6546007b3f0d3bc45125f797758156952bc2d6daf40 AS runtime-base
+FROM alpine:3.24.2@sha256:294b683cb724975bec92580e1e685676bd4b50bda910ddb8c51d4cabeaec77e6 AS runtime-base
 
-ARG VERSION=0.2.1
+ARG VERSION=0.2.2
 ARG GIT_SHA=dev
 ARG BUILD_DATE=unknown
 ARG APP_VERSION=${VERSION}
 ARG APP_BUILD_SHA=${GIT_SHA}
 ARG APP_BUILD_DATE=${BUILD_DATE}
-ARG ALPINE_SECURITY_REFRESH=2026-09-07
+ARG ALPINE_SECURITY_REFRESH=2026-10-11
 
 LABEL org.opencontainers.image.title="Pulliku" \
       org.opencontainers.image.description="Controlled self-hosted media downloads through yt-dlp" \
@@ -99,7 +99,9 @@ CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080", "--no-acc
 FROM runtime-base AS test
 USER root
 COPY requirements-test.txt .
-RUN pip install --no-cache-dir -r requirements-test.txt
+RUN pip install --no-cache-dir -r requirements-test.txt \
+    && pip uninstall -y pip setuptools wheel \
+    && apk del py3-pip
 COPY tests ./tests
 RUN python -m unittest discover -s tests -v
 

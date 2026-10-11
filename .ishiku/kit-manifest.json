@@ -112,15 +112,15 @@
     },
     {
       "path": ".github/workflows/ishiku-pull-request-verify.yml",
-      "sha256": "532c552294adc9f8a17bfe29c63983900ab1e8c95575abe2f2ee1f9f83c3b15d"
+      "sha256": "5c3836d0eea2fb053e4129c4f1360198c81fe8b0dfa4adef8a7f1df6fab6f96d"
     },
     {
       "path": ".github/workflows/ishiku-release-release.yml",
-      "sha256": "be93ded18ae0a2c8e09d2651fa939f212db4731ad7187114cf0a7e8625086fd9"
+      "sha256": "602150d43d86d2059089f53ab5c5f9796eb30003dd60404817aac487af121d58"
     },
     {
       "path": ".github/workflows/ishiku-upstream-update-upstream-update.yml",
-      "sha256": "a2d6630c1c13ee2e073f50b5ece4706369032db83969b10a5073580372978916"
+      "sha256": "661496c00ba6aa28c92705573fa35bf497c4e555b553ead8fdd31a016118f308"
     },
     {
       "path": ".ishiku/kit/platform.yaml",
@@ -256,5 +256,7 @@
   "allowed_overrides": [
     ".ishiku/overrides/"
   ],
-  "local_changes": []
+  "local_changes": [
+    "2026-10-11: refresh GitHub Action release pins in the three managed workflows; preserve triggers, permissions and verification gates."
+  ]
 }
