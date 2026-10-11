@@ -2,44 +2,53 @@
   "schema_version": 1,
   "requirement": "REL-001",
   "status": "verified",
-  "verified_at": "2026-09-07T08:45:55Z",
+  "verified_at": "2026-10-11T17:19:54.158963+00:00",
   "release": {
-    "tag": "v0.2.1",
-    "commit": "c41c41de67d0b15a583f156e65b51c0d95bfdfde",
-    "url": "https://github.com/MaroIshiku/pulliku/releases/tag/v0.2.1",
-    "workflow_run": "https://github.com/MaroIshiku/pulliku/actions/runs/34101696284",
-    "verify_job": "https://github.com/MaroIshiku/pulliku/actions/runs/34101696284/job/101677361194",
-    "publish_job": "https://github.com/MaroIshiku/pulliku/actions/runs/34101696284/job/101677567703"
+    "tag": "v0.2.2",
+    "commit": "ae50cddc902b37ba705212cb94bf45d533e3027a",
+    "url": "https://github.com/MaroIshiku/pulliku/releases/tag/v0.2.2",
+    "workflow_run": "https://github.com/MaroIshiku/pulliku/actions/runs/38158667633"
   },
   "image": {
     "name": "ghcr.io/maroishiku/pulliku",
-    "digest": "sha256:a1c8dfca1f411646b353a4cd0df850c0504cdf6e5cdfeeb1a76b77067352102d",
-    "amd64_digest": "sha256:d0b197757f308824b759c1b87ed7b385510683ee5e6ff0c2ebc15c0a980a5d9d",
-    "arm64_digest": "sha256:6028c6d1b7c0b2dc2191923cf1a638fc06dffca27c1790e7bbcba8590fc35bbf",
+    "digest": "sha256:d165193691e264cb85c410c6992e8d2c899b84bb01d6c13601dbeaa74bd2c3c8",
+    "amd64_digest": "sha256:738cfa26a8fd2df79489d0790ed54e2d63f3ad1b5ee6d9a267460c77fa497380",
+    "arm64_digest": "sha256:6508c22ba0c22bcd1b476f9ff35640dacbc44d30ec0506bf302544bcc84f6b69",
     "verified_tags": [
-      "v0.2.1",
-      "0.2.1",
+      "v0.2.2",
+      "0.2.2",
       "latest",
-      "sha-c41c41de67d0b15a583f156e65b51c0d95bfdfde"
+      "sha-ae50cddc902b37ba705212cb94bf45d533e3027a"
     ],
-    "rollback_digest": "sha256:641510ca2feed48f71ad1a4643d7aa405907f587a1c8de24df36269ac5bf15e4"
+    "rollback_digest": "sha256:a1c8dfca1f411646b353a4cd0df850c0504cdf6e5cdfeeb1a76b77067352102d"
   },
   "gates": {
     "independent_full_verification": "passed",
+    "local_full_verification": "passed",
+    "arm64_security_tests": 10,
+    "amd64_security_tests": 10,
     "trivy_high_critical": "passed",
     "known_high": 0,
     "known_critical": 0,
-    "promotion_without_rebuild": "passed"
+    "promotion_without_rebuild": "passed",
+    "published_image_smoke": "passed",
+    "arm64_trivy_high_critical": "passed",
+    "arm64_known_high_critical": 0
   },
   "sbom": {
-    "url": "https://github.com/MaroIshiku/pulliku/releases/download/v0.2.1/release-0.2.1.sbom.json",
-    "sha256": "79fae81d562bd880d78f0f8a4d77fb7091b501dfd167da02d08c856a3b13f26f",
-    "size_bytes": 6265641,
+    "url": "https://github.com/MaroIshiku/pulliku/releases/download/v0.2.2/release-0.2.2.sbom.json",
+    "sha256": "4e7e0e5e5f6f17acb949777fdf215038576f0fb97a1ee2196bfaa5b0e464d4c2",
+    "size_bytes": 6207579,
     "json_validated": true
   },
   "provenance": {
     "predicate_type": "https://slsa.dev/provenance/v1",
-    "subject": "ghcr.io/maroishiku/pulliku@sha256:a1c8dfca1f411646b353a4cd0df850c0504cdf6e5cdfeeb1a76b77067352102d",
+    "subject": "ghcr.io/maroishiku/pulliku@sha256:d165193691e264cb85c410c6992e8d2c899b84bb01d6c13601dbeaa74bd2c3c8",
     "verification": "gh attestation verify succeeded with repository, source digest, source ref, and signer workflow constraints"
+  },
+  "previous_release": {
+    "tag": "v0.2.1",
+    "url": "https://github.com/MaroIshiku/pulliku/releases/tag/v0.2.1",
+    "digest": "sha256:a1c8dfca1f411646b353a4cd0df850c0504cdf6e5cdfeeb1a76b77067352102d"
   }
 }

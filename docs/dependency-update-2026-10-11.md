@@ -42,4 +42,12 @@ Baseline structural verification passed 439 checks with no failures. After updat
 
 The amd64 runtime started with a read-only filesystem and dropped capabilities; Uvicorn ran as UID/GID 10001. Readiness, health, initial setup, login and restart with persistent account data passed using isolated synthetic volumes. A baseline image built from the pre-update Git tree successfully read and authenticated against that same synthetic database, and the updated image then successfully reopened it again. No application/data migration is required. For deployment rollback, restore the previous deployed immutable image digest and dependency commit; retain the existing backup procedures in README.md.
 
-The initial local CI verifier reported `VERIFIED`. Release 0.2.2 updates the app version and pinned Compose defaults together. GitHub verification and immutable publication evidence are recorded below after the release completes. No production data is used for validation.
+The initial local CI verifier reported `VERIFIED`. Release 0.2.2 updates the app version and pinned Compose defaults together. GitHub verification and immutable publication evidence are recorded below. No production data is used for validation.
+
+## Published release 0.2.2
+
+Status: `VERIFIED`. The [dependency PR](https://github.com/MaroIshiku/pulliku/pull/31) is merged. [Independent GitHub verification](https://github.com/MaroIshiku/pulliku/actions/runs/38158515472) and the [release workflow](https://github.com/MaroIshiku/pulliku/actions/runs/38158667633) passed. Local ARM64 test-stage verification passed all 10 security tests, supplementing the AMD64 checks.
+
+The [GitHub release](https://github.com/MaroIshiku/pulliku/releases/tag/v0.2.2) publishes AMD64 and ARM64 under `ghcr.io/maroishiku/pulliku:0.2.2`, `:v0.2.2`, and `:latest`, all pointing to `sha256:d165193691e264cb85c410c6992e8d2c899b84bb01d6c13601dbeaa74bd2c3c8`. The published AMD64 image passed isolated readiness/setup/login/restart checks and reports version 0.2.2. The release SBOM parses as JSON; cryptographic provenance verification succeeded with the expected source commit, tag and signer workflow. Machine-readable evidence is in `.ishiku/reports/rel-001-verification.json`.
+
+Rollback image: `ghcr.io/maroishiku/pulliku@sha256:a1c8dfca1f411646b353a4cd0df850c0504cdf6e5cdfeeb1a76b77067352102d` (0.2.1).
